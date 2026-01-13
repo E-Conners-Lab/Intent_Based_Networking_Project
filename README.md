@@ -55,6 +55,9 @@ Solution found in 8ms:
 | **What-If Analysis** | Simulate node/domain failures before they happen |
 | **Config Generation** | Jinja2 templates produce IOS-XE BGP configurations |
 | **Live Deployment** | Push configs via SSH with Netmiko |
+| **Config Diff** | Preview exactly what will change before deploying |
+| **Topology Visualization** | ASCII diagrams showing network and computed paths |
+| **Real-Time Monitoring** | Watch BGP/BFD status with live updates |
 | **Verification** | Confirm BGP neighbors and BFD sessions are up |
 
 ## Quick Start
@@ -63,8 +66,8 @@ Solution found in 8ms:
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/ibn-platform.git
-cd ibn-platform
+git clone https://github.com/E-Conners-Lab/Intent_Based_Networking_Project.git
+cd Intent_Based_Networking_Project
 
 # Install with uv (recommended)
 uv sync
@@ -76,13 +79,16 @@ pip install -e .
 ### Commands
 
 ```bash
+# Show network topology diagram
+ibn show-topology
+
 # Load and validate topology
 ibn load-topology examples/lab.yaml
 
 # Validate an intent
 ibn validate-intent examples/intents/nyc-branch.yaml
 
-# Solve for optimal paths (no device changes)
+# Solve for optimal paths (shows diagram with paths)
 ibn solve examples/intents/nyc-branch.yaml
 
 # Simulate failures
@@ -91,11 +97,17 @@ ibn what-if examples/intents/nyc-branch.yaml --fail-node IBN-Core1
 # Generate configs (view only)
 ibn generate-config examples/intents/nyc-branch.yaml
 
+# Deploy with diff preview
+ibn deploy examples/intents/nyc-branch.yaml --diff -u admin -p <password>
+
 # Deploy to devices
 ibn deploy examples/intents/nyc-branch.yaml -u admin -p <password>
 
 # Verify BGP/BFD status
 ibn verify -u admin -p <password> --bgp --bfd
+
+# Watch network status in real-time
+ibn watch -u admin -p <password>
 ```
 
 ## Architecture
@@ -164,7 +176,7 @@ The platform was developed and tested on an EVE-NG lab with Cisco C8000V routers
 ```
 ibn-platform/
 ├── src/ibn/
-│   ├── cli.py              # Click CLI commands
+│   ├── cli.py              # Click CLI commands (13 commands)
 │   ├── errors.py           # Exception hierarchy
 │   ├── model/
 │   │   ├── topology.py     # Pydantic topology models
@@ -178,9 +190,14 @@ ibn-platform/
 │   ├── services/
 │   │   ├── schema.py       # Service model definitions
 │   │   └── registry.py     # Service type registry
-│   └── deploy/
-│       ├── generator.py    # Config generation
-│       └── connector.py    # SSH device connector
+│   ├── deploy/
+│   │   ├── generator.py    # Config generation
+│   │   ├── connector.py    # SSH device connector
+│   │   └── diff.py         # Config diff engine
+│   ├── viz/
+│   │   └── topology.py     # ASCII topology diagrams
+│   └── monitor/
+│       └── watcher.py      # Real-time network monitoring
 ├── templates/
 │   ├── ios-xe/
 │   │   └── bgp.j2          # BGP config template
@@ -212,6 +229,9 @@ ibn-platform/
 - [x] BGP/BFD config generation
 - [x] SSH deployment with Netmiko
 - [x] What-if failure simulation
+- [x] Topology visualization (ASCII diagrams)
+- [x] Config diff before deployment
+- [x] Real-time network monitoring
 - [ ] NETCONF/RESTCONF support
 - [ ] Web dashboard
 - [ ] Multi-vendor templates
