@@ -5,22 +5,48 @@
 {% block content %}
 <div class="mb-8">
     <h1 class="text-3xl font-bold text-gray-900">Network Monitoring</h1>
-    <p class="text-gray-600">Real-time BGP and BFD status</p>
+    <p class="text-gray-600">Real-time device, BGP, and BFD status</p>
 </div>
 
-<div class="mb-4">
-    <button onclick="refreshStatus()"
-        class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
-        Refresh Status
+<!-- Credentials Status Banner -->
+{% if not credentials_configured %}
+<div class="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+    <div class="flex items-center">
+        <svg class="w-5 h-5 text-yellow-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+        </svg>
+        <span class="text-yellow-800">
+            <strong>Credentials not configured.</strong>
+            Set <code class="bg-yellow-100 px-1 rounded">IBN_DEVICE_USER</code> and
+            <code class="bg-yellow-100 px-1 rounded">IBN_DEVICE_PASS</code> environment variables for live monitoring.
+        </span>
+    </div>
+</div>
+{% endif %}
+
+<div class="mb-4 flex items-center gap-4">
+    <button onclick="refreshLive()"
+        class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center gap-2"
+        id="live-refresh-btn">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+        </svg>
+        Refresh Live
     </button>
-    <span class="ml-4 text-sm text-gray-500">Auto-refresh:
+    <button onclick="refreshCached()"
+        class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700">
+        Quick Refresh
+    </button>
+    <span class="text-sm text-gray-500">
+        Auto-refresh (30s):
         <button onclick="toggleAutoRefresh()" id="auto-refresh-btn" class="text-indigo-600 underline">Enable</button>
     </span>
+    <span id="last-refresh" class="text-sm text-gray-400 ml-auto"></span>
 </div>
 
 <div class="bg-white rounded-lg shadow p-6 mb-6">
     <h2 class="text-xl font-semibold text-gray-900 mb-4">Device Status</h2>
-    <div id="status-panel" hx-get="/api/monitor/status" hx-trigger="load" hx-swap="innerHTML">
+    <div id="status-panel">
         <div class="animate-pulse flex space-x-4">
             <div class="flex-1 space-y-4 py-1">
                 <div class="h-4 bg-gray-200 rounded w-3/4"></div>
@@ -33,14 +59,14 @@
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
     <div class="bg-white rounded-lg shadow p-6">
         <h2 class="text-xl font-semibold text-gray-900 mb-4">BGP Neighbors</h2>
-        <div id="bgp-panel" hx-get="/api/monitor/bgp" hx-trigger="load" hx-swap="innerHTML">
+        <div id="bgp-panel">
             <div class="animate-pulse">Loading...</div>
         </div>
     </div>
 
     <div class="bg-white rounded-lg shadow p-6">
         <h2 class="text-xl font-semibold text-gray-900 mb-4">BFD Sessions</h2>
-        <div id="bfd-panel" hx-get="/api/monitor/bfd" hx-trigger="load" hx-swap="innerHTML">
+        <div id="bfd-panel">
             <div class="animate-pulse">Loading...</div>
         </div>
     </div>
@@ -50,16 +76,67 @@
 {% block scripts %}
 <script>
 let autoRefreshInterval = null;
+let isLiveRefreshing = false;
 
-function refreshStatus() {
-    htmx.trigger('#status-panel', 'htmx:trigger');
-    htmx.trigger('#bgp-panel', 'htmx:trigger');
-    htmx.trigger('#bfd-panel', 'htmx:trigger');
+function setLoading(panel, loading) {
+    if (loading) {
+        panel.innerHTML = '<div class="animate-pulse text-center py-4"><div class="inline-block w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div><p class="mt-2 text-gray-500">Connecting to devices...</p></div>';
+    }
+}
 
-    document.getElementById('status-panel').innerHTML = '<div class="animate-pulse">Refreshing...</div>';
-    fetch('/api/monitor/status').then(r => r.json()).then(data => renderStatus(data));
-    fetch('/api/monitor/bgp').then(r => r.json()).then(data => renderBGP(data));
-    fetch('/api/monitor/bfd').then(r => r.json()).then(data => renderBFD(data));
+function updateLastRefresh() {
+    const now = new Date();
+    document.getElementById('last-refresh').textContent = 'Last: ' + now.toLocaleTimeString();
+}
+
+async function refreshLive() {
+    if (isLiveRefreshing) return;
+    isLiveRefreshing = true;
+
+    const btn = document.getElementById('live-refresh-btn');
+    btn.disabled = true;
+    btn.classList.add('opacity-50');
+
+    setLoading(document.getElementById('status-panel'), true);
+    setLoading(document.getElementById('bgp-panel'), true);
+    setLoading(document.getElementById('bfd-panel'), true);
+
+    try {
+        const [statusData, bgpData, bfdData] = await Promise.all([
+            fetch('/api/monitor/status?live=true').then(r => r.json()),
+            fetch('/api/monitor/bgp?live=true').then(r => r.json()),
+            fetch('/api/monitor/bfd?live=true').then(r => r.json()),
+        ]);
+
+        renderStatus(statusData);
+        renderBGP(bgpData);
+        renderBFD(bfdData);
+        updateLastRefresh();
+    } catch (err) {
+        console.error('Refresh failed:', err);
+        document.getElementById('status-panel').innerHTML = '<p class="text-red-600">Error fetching status</p>';
+    } finally {
+        isLiveRefreshing = false;
+        btn.disabled = false;
+        btn.classList.remove('opacity-50');
+    }
+}
+
+async function refreshCached() {
+    try {
+        const [statusData, bgpData, bfdData] = await Promise.all([
+            fetch('/api/monitor/status').then(r => r.json()),
+            fetch('/api/monitor/bgp').then(r => r.json()),
+            fetch('/api/monitor/bfd').then(r => r.json()),
+        ]);
+
+        renderStatus(statusData);
+        renderBGP(bgpData);
+        renderBFD(bfdData);
+        updateLastRefresh();
+    } catch (err) {
+        console.error('Refresh failed:', err);
+    }
 }
 
 function toggleAutoRefresh() {
@@ -69,8 +146,9 @@ function toggleAutoRefresh() {
         autoRefreshInterval = null;
         btn.textContent = 'Enable';
     } else {
-        autoRefreshInterval = setInterval(refreshStatus, 30000);
+        autoRefreshInterval = setInterval(refreshLive, 30000);
         btn.textContent = 'Disable';
+        refreshLive(); // Immediate refresh when enabling
     }
 }
 
@@ -80,12 +158,42 @@ function renderStatus(data) {
         panel.innerHTML = '<p class="text-gray-500">No devices found</p>';
         return;
     }
-    let html = '<table class="min-w-full"><thead><tr><th class="text-left py-2">Device</th><th class="text-left">IP</th><th class="text-left">Vendor</th><th class="text-left">Status</th></tr></thead><tbody>';
+
+    let html = '<table class="min-w-full"><thead><tr class="border-b">';
+    html += '<th class="text-left py-2">Device</th>';
+    html += '<th class="text-left">IP</th>';
+    html += '<th class="text-left">Vendor</th>';
+    html += '<th class="text-left">Status</th>';
+    html += '<th class="text-left">Message</th>';
+    html += '</tr></thead><tbody>';
+
     data.devices.forEach(d => {
-        const statusClass = d.status === 'up' ? 'text-green-600' : 'text-gray-500';
-        html += `<tr><td class="py-2 font-medium">${d.name}</td><td>${d.mgmt_ip}</td><td>${d.vendor}</td><td class="${statusClass}">${d.status}</td></tr>`;
+        let statusBadge;
+        if (d.status === 'up') {
+            statusBadge = '<span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-sm">Up</span>';
+        } else if (d.status === 'down') {
+            statusBadge = '<span class="px-2 py-1 bg-red-100 text-red-800 rounded-full text-sm">Down</span>';
+        } else if (d.status === 'no_credentials') {
+            statusBadge = '<span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm">No Creds</span>';
+        } else {
+            statusBadge = '<span class="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-sm">' + d.status + '</span>';
+        }
+
+        html += '<tr class="border-b hover:bg-gray-50">';
+        html += '<td class="py-2 font-medium">' + d.name + '</td>';
+        html += '<td class="font-mono text-sm">' + d.mgmt_ip + '</td>';
+        html += '<td>' + d.vendor + '</td>';
+        html += '<td>' + statusBadge + '</td>';
+        html += '<td class="text-sm text-gray-600 max-w-xs truncate">' + (d.message || '') + '</td>';
+        html += '</tr>';
     });
+
     html += '</tbody></table>';
+
+    if (!data.credentials_configured) {
+        html += '<p class="mt-4 text-sm text-yellow-600">Set IBN_DEVICE_USER and IBN_DEVICE_PASS for live status.</p>';
+    }
+
     panel.innerHTML = html;
 }
 
@@ -95,11 +203,28 @@ function renderBGP(data) {
         panel.innerHTML = '<p class="text-gray-500">No BGP data</p>';
         return;
     }
-    let html = '<div class="space-y-2">';
+
+    let html = '<div class="space-y-4">';
     data.bgp_status.forEach(d => {
-        html += `<div class="p-2 bg-gray-50 rounded"><strong>${d.device}</strong> - ${d.status}</div>`;
+        let statusClass = d.status === 'ok' ? 'bg-green-100 text-green-800' :
+                          d.status === 'error' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800';
+
+        html += '<div class="border rounded-lg p-4">';
+        html += '<div class="flex justify-between items-center mb-2">';
+        html += '<h4 class="font-semibold">' + d.device + '</h4>';
+        html += '<span class="text-sm text-gray-500">' + d.mgmt_ip + '</span>';
+        html += '<span class="px-2 py-1 ' + statusClass + ' rounded-full text-xs">' + d.status + '</span>';
+        html += '</div>';
+
+        if (d.output) {
+            html += '<pre class="text-xs bg-gray-900 text-green-400 p-3 rounded overflow-x-auto max-h-48">' + escapeHtml(d.output) + '</pre>';
+        } else {
+            html += '<p class="text-gray-500 text-sm">Click "Refresh Live" to fetch from device.</p>';
+        }
+        html += '</div>';
     });
     html += '</div>';
+
     panel.innerHTML = html;
 }
 
@@ -109,19 +234,38 @@ function renderBFD(data) {
         panel.innerHTML = '<p class="text-gray-500">No BFD data</p>';
         return;
     }
-    let html = '<div class="space-y-2">';
+
+    let html = '<div class="space-y-4">';
     data.bfd_status.forEach(d => {
-        html += `<div class="p-2 bg-gray-50 rounded"><strong>${d.device}</strong> - ${d.status}</div>`;
+        let statusClass = d.status === 'ok' ? 'bg-green-100 text-green-800' :
+                          d.status === 'error' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800';
+
+        html += '<div class="border rounded-lg p-4">';
+        html += '<div class="flex justify-between items-center mb-2">';
+        html += '<h4 class="font-semibold">' + d.device + '</h4>';
+        html += '<span class="text-sm text-gray-500">' + d.mgmt_ip + '</span>';
+        html += '<span class="px-2 py-1 ' + statusClass + ' rounded-full text-xs">' + d.status + '</span>';
+        html += '</div>';
+
+        if (d.output) {
+            html += '<pre class="text-xs bg-gray-900 text-green-400 p-3 rounded overflow-x-auto max-h-48">' + escapeHtml(d.output) + '</pre>';
+        } else {
+            html += '<p class="text-gray-500 text-sm">Click "Refresh Live" to fetch from device.</p>';
+        }
+        html += '</div>';
     });
     html += '</div>';
+
     panel.innerHTML = html;
 }
 
-// Initial load
-document.addEventListener('DOMContentLoaded', function() {
-    fetch('/api/monitor/status').then(r => r.json()).then(data => renderStatus(data));
-    fetch('/api/monitor/bgp').then(r => r.json()).then(data => renderBGP(data));
-    fetch('/api/monitor/bfd').then(r => r.json()).then(data => renderBFD(data));
-});
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Initial load (cached data)
+document.addEventListener('DOMContentLoaded', refreshCached);
 </script>
 {% endblock %}

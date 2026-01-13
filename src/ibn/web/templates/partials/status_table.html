@@ -6,22 +6,28 @@
             <th class="text-left">IP</th>
             <th class="text-left">Vendor</th>
             <th class="text-left">Status</th>
+            <th class="text-left">Message</th>
         </tr>
     </thead>
     <tbody>
         {% for device in devices %}
         <tr class="border-b hover:bg-gray-50">
             <td class="py-2 font-medium">{{ device.name }}</td>
-            <td>{{ device.mgmt_ip }}</td>
+            <td class="font-mono text-sm">{{ device.mgmt_ip }}</td>
             <td>{{ device.vendor }}</td>
             <td>
                 {% if device.status == 'up' %}
                 <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-sm">Up</span>
                 {% elif device.status == 'down' %}
                 <span class="px-2 py-1 bg-red-100 text-red-800 rounded-full text-sm">Down</span>
+                {% elif device.status == 'no_credentials' %}
+                <span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm">No Creds</span>
                 {% else %}
                 <span class="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-sm">{{ device.status }}</span>
                 {% endif %}
+            </td>
+            <td class="text-sm text-gray-600 max-w-xs truncate" title="{{ device.message | default('') }}">
+                {{ device.message | default('') | truncate(50) }}
             </td>
         </tr>
         {% endfor %}
