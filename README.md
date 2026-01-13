@@ -226,7 +226,7 @@ ibn-platform/
 │   └── compliance/
 │       └── checker.py      # Compliance monitoring & verification
 ├── tests/
-│   └── unit/               # Unit tests (80 tests)
+│   └── unit/               # Unit tests (81 tests)
 │       ├── test_compliance.py # Compliance checker tests
 │       ├── test_history.py    # Deployment history tests
 │       ├── test_intent.py     # Intent parser tests
@@ -270,7 +270,7 @@ ibn-platform/
 - [x] Real-time network monitoring
 - [x] Deployment history tracking
 - [x] Rollback capability
-- [x] Unit test suite (80 tests)
+- [x] Unit test suite (81 tests)
 - [x] Continuous compliance monitoring
 - [x] NETCONF/RESTCONF support
 - [ ] Web dashboard

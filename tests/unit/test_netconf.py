@@ -161,6 +161,24 @@ class TestNetconfConnector:
         assert result.success is True
 
     @patch("ibn.deploy.netconf.manager")
+    def test_filter_format_is_tuple(self, mock_manager, connector):
+        """Test that NETCONF filters use correct tuple format for ncclient."""
+        mock_conn = MagicMock()
+        mock_manager.connect.return_value.__enter__ = MagicMock(return_value=mock_conn)
+        mock_manager.connect.return_value.__exit__ = MagicMock(return_value=False)
+        mock_conn.get.return_value.data_xml = "<data></data>"
+
+        connector.verify_bgp_neighbors("10.100.0.1", "IBN-HQ")
+
+        # Verify filter is passed as tuple ("subtree", xml_content)
+        call_args = mock_conn.get.call_args
+        filter_arg = call_args.kwargs.get("filter") or call_args[1].get("filter")
+        assert isinstance(filter_arg, tuple), "Filter should be a tuple"
+        assert filter_arg[0] == "subtree", "Filter type should be 'subtree'"
+        assert "bgp-state-data" in filter_arg[1], "Filter should contain BGP state element"
+        assert "<filter>" not in filter_arg[1], "Filter should NOT contain outer <filter> tag"
+
+    @patch("ibn.deploy.netconf.manager")
     def test_connection_failure(self, mock_manager, connector):
         """Test handling connection failure."""
         mock_manager.connect.side_effect = Exception("Connection refused")
