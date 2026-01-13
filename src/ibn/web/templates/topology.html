@@ -8,20 +8,20 @@
 
 {% block content %}
 <div class="mb-8">
-    <h1 class="text-3xl font-bold text-gray-900">Network Topology</h1>
-    <p class="text-gray-600">Interactive network visualization</p>
+    <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Network Topology</h1>
+    <p class="text-gray-600 dark:text-gray-400">Interactive network visualization</p>
 </div>
 
-<div class="bg-white rounded-lg shadow p-6">
+<div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
     <div id="topology-container" class="w-full" style="height: 500px;">
         <svg id="topology-svg" class="w-full h-full"></svg>
     </div>
 </div>
 
-<div class="mt-6 bg-white rounded-lg shadow p-6">
-    <h2 class="text-xl font-semibold text-gray-900 mb-4">Topology Data</h2>
+<div class="mt-6 bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Topology Data</h2>
     <div id="topology-data" hx-get="/api/topology" hx-trigger="load" hx-swap="innerHTML">
-        <div class="animate-pulse">Loading...</div>
+        <div class="animate-pulse text-gray-500 dark:text-gray-400">Loading...</div>
     </div>
 </div>
 {% endblock %}
@@ -125,16 +125,16 @@ function renderDataTable(data) {
     let html = '<div class="grid grid-cols-2 gap-6">';
 
     // Nodes table
-    html += '<div><h3 class="font-semibold mb-2">Nodes</h3><table class="min-w-full"><thead><tr><th class="text-left">Name</th><th class="text-left">Vendor</th><th class="text-left">Loopback</th></tr></thead><tbody>';
+    html += '<div><h3 class="font-semibold mb-2 text-gray-900 dark:text-white">Nodes</h3><table class="min-w-full"><thead><tr class="border-b border-gray-200 dark:border-gray-700"><th class="text-left text-gray-900 dark:text-white">Name</th><th class="text-left text-gray-900 dark:text-white">Vendor</th><th class="text-left text-gray-900 dark:text-white">Loopback</th></tr></thead><tbody>';
     data.nodes.forEach(n => {
-        html += `<tr><td class="py-1">${n.label}</td><td>${n.vendor}</td><td>${n.loopback}</td></tr>`;
+        html += `<tr class="border-b border-gray-200 dark:border-gray-700"><td class="py-1 text-gray-700 dark:text-gray-300">${n.label}</td><td class="text-gray-700 dark:text-gray-300">${n.vendor}</td><td class="text-gray-700 dark:text-gray-300">${n.loopback}</td></tr>`;
     });
     html += '</tbody></table></div>';
 
     // Edges table
-    html += '<div><h3 class="font-semibold mb-2">Links</h3><table class="min-w-full"><thead><tr><th class="text-left">Source</th><th class="text-left">Target</th><th class="text-left">Latency</th></tr></thead><tbody>';
+    html += '<div><h3 class="font-semibold mb-2 text-gray-900 dark:text-white">Links</h3><table class="min-w-full"><thead><tr class="border-b border-gray-200 dark:border-gray-700"><th class="text-left text-gray-900 dark:text-white">Source</th><th class="text-left text-gray-900 dark:text-white">Target</th><th class="text-left text-gray-900 dark:text-white">Latency</th></tr></thead><tbody>';
     data.edges.forEach(e => {
-        html += `<tr><td class="py-1">${e.source}</td><td>${e.target}</td><td>${e.latency}ms</td></tr>`;
+        html += `<tr class="border-b border-gray-200 dark:border-gray-700"><td class="py-1 text-gray-700 dark:text-gray-300">${e.source}</td><td class="text-gray-700 dark:text-gray-300">${e.target}</td><td class="text-gray-700 dark:text-gray-300">${e.latency}ms</td></tr>`;
     });
     html += '</tbody></table></div>';
 

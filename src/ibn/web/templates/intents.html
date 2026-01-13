@@ -4,47 +4,47 @@
 
 {% block content %}
 <div class="mb-8">
-    <h1 class="text-3xl font-bold text-gray-900">Intent Management</h1>
-    <p class="text-gray-600">Create and manage network intents</p>
+    <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Intent Management</h1>
+    <p class="text-gray-600 dark:text-gray-400">Create and manage network intents</p>
 </div>
 
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
     <!-- Create Intent Form -->
-    <div class="bg-white rounded-lg shadow p-6">
-        <h2 class="text-xl font-semibold text-gray-900 mb-4">Create Intent</h2>
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Create Intent</h2>
         <form id="intent-form" class="space-y-4">
             <div>
-                <label class="block text-sm font-medium text-gray-700">Name</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Name</label>
                 <input type="text" name="name" required
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700">Type</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Type</label>
                 <select name="type" required
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
                     <option value="branch-wan">Branch WAN</option>
                     <option value="site-to-site">Site-to-Site</option>
                 </select>
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700">Source</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Source</label>
                 <input type="text" name="source" value="IBN-HQ" required
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700">Destination</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Destination</label>
                 <input type="text" name="destination" value="IBN-Branch" required
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700">Max Latency (ms)</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Max Latency (ms)</label>
                 <input type="number" name="latency_ms" value="50"
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
             </div>
             <div class="flex items-center">
                 <input type="checkbox" name="diverse_paths" id="diverse_paths" checked
-                    class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
-                <label for="diverse_paths" class="ml-2 block text-sm text-gray-700">Require diverse paths</label>
+                    class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700">
+                <label for="diverse_paths" class="ml-2 block text-sm text-gray-700 dark:text-gray-300">Require diverse paths</label>
             </div>
             <button type="submit"
                 class="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
@@ -54,19 +54,19 @@
     </div>
 
     <!-- Results -->
-    <div class="bg-white rounded-lg shadow p-6">
-        <h2 class="text-xl font-semibold text-gray-900 mb-4">Solution</h2>
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Solution</h2>
         <div id="solution-result">
-            <p class="text-gray-500">Submit an intent to see the computed paths.</p>
+            <p class="text-gray-500 dark:text-gray-400">Submit an intent to see the computed paths.</p>
         </div>
     </div>
 </div>
 
 <!-- Intent List -->
-<div class="mt-6 bg-white rounded-lg shadow p-6">
-    <h2 class="text-xl font-semibold text-gray-900 mb-4">Saved Intents</h2>
+<div class="mt-6 bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Saved Intents</h2>
     <div id="intents-list" hx-get="/api/intents" hx-trigger="load" hx-swap="innerHTML">
-        <div class="animate-pulse">Loading...</div>
+        <div class="animate-pulse text-gray-500 dark:text-gray-400">Loading...</div>
     </div>
 </div>
 {% endblock %}
@@ -89,7 +89,7 @@ document.getElementById('intent-form').addEventListener('submit', async function
     };
 
     const resultDiv = document.getElementById('solution-result');
-    resultDiv.innerHTML = '<div class="animate-pulse">Solving...</div>';
+    resultDiv.innerHTML = '<div class="animate-pulse text-gray-500 dark:text-gray-400">Solving...</div>';
 
     try {
         const response = await fetch('/api/intents/solve', {
@@ -101,28 +101,28 @@ document.getElementById('intent-form').addEventListener('submit', async function
 
         if (data.success) {
             let html = '<div class="space-y-4">';
-            html += '<div class="p-4 bg-green-50 rounded-lg">';
-            html += '<h3 class="font-semibold text-green-800">Primary Path</h3>';
-            html += `<p class="text-green-700">${data.primary_path.path.join(' → ')}</p>`;
-            html += `<p class="text-sm text-green-600">Latency: ${data.primary_path.latency_ms}ms | Domain: ${data.primary_path.domain || 'N/A'}</p>`;
+            html += '<div class="p-4 bg-green-50 dark:bg-green-900/30 rounded-lg">';
+            html += '<h3 class="font-semibold text-green-800 dark:text-green-300">Primary Path</h3>';
+            html += `<p class="text-green-700 dark:text-green-400">${data.primary_path.path.join(' → ')}</p>`;
+            html += `<p class="text-sm text-green-600 dark:text-green-500">Latency: ${data.primary_path.latency_ms}ms | Domain: ${data.primary_path.domain || 'N/A'}</p>`;
             html += '</div>';
 
             if (data.backup_path) {
-                html += '<div class="p-4 bg-blue-50 rounded-lg">';
-                html += '<h3 class="font-semibold text-blue-800">Backup Path</h3>';
-                html += `<p class="text-blue-700">${data.backup_path.path.join(' → ')}</p>`;
-                html += `<p class="text-sm text-blue-600">Latency: ${data.backup_path.latency_ms}ms | Domain: ${data.backup_path.domain || 'N/A'}</p>`;
+                html += '<div class="p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg">';
+                html += '<h3 class="font-semibold text-blue-800 dark:text-blue-300">Backup Path</h3>';
+                html += `<p class="text-blue-700 dark:text-blue-400">${data.backup_path.path.join(' → ')}</p>`;
+                html += `<p class="text-sm text-blue-600 dark:text-blue-500">Latency: ${data.backup_path.latency_ms}ms | Domain: ${data.backup_path.domain || 'N/A'}</p>`;
                 html += '</div>';
             }
 
-            html += `<p class="text-sm text-gray-500">Solved in ${data.solver_time_ms}ms</p>`;
+            html += `<p class="text-sm text-gray-500 dark:text-gray-400">Solved in ${data.solver_time_ms}ms</p>`;
             html += '</div>';
             resultDiv.innerHTML = html;
         } else {
-            resultDiv.innerHTML = `<div class="p-4 bg-red-50 rounded-lg text-red-700">${data.error || 'No solution found'}</div>`;
+            resultDiv.innerHTML = `<div class="p-4 bg-red-50 dark:bg-red-900/30 rounded-lg text-red-700 dark:text-red-300">${data.error || 'No solution found'}</div>`;
         }
     } catch (err) {
-        resultDiv.innerHTML = `<div class="p-4 bg-red-50 rounded-lg text-red-700">Error: ${err.message}</div>`;
+        resultDiv.innerHTML = `<div class="p-4 bg-red-50 dark:bg-red-900/30 rounded-lg text-red-700 dark:text-red-300">Error: ${err.message}</div>`;
     }
 });
 
@@ -131,11 +131,11 @@ htmx.on('htmx:afterSwap', function(evt) {
     if (evt.detail.target.id === 'intents-list') {
         const data = JSON.parse(evt.detail.xhr.responseText);
         if (Array.isArray(data) && data.length === 0) {
-            evt.detail.target.innerHTML = '<p class="text-gray-500">No saved intents yet.</p>';
+            evt.detail.target.innerHTML = '<p class="text-gray-500 dark:text-gray-400">No saved intents yet.</p>';
         } else if (Array.isArray(data)) {
-            let html = '<table class="min-w-full"><thead><tr><th class="text-left py-2">Name</th><th class="text-left">Type</th><th class="text-left">Source</th><th class="text-left">Destination</th></tr></thead><tbody>';
+            let html = '<table class="min-w-full"><thead><tr class="border-b border-gray-200 dark:border-gray-700"><th class="text-left py-2 text-gray-900 dark:text-white">Name</th><th class="text-left text-gray-900 dark:text-white">Type</th><th class="text-left text-gray-900 dark:text-white">Source</th><th class="text-left text-gray-900 dark:text-white">Destination</th></tr></thead><tbody>';
             data.forEach(i => {
-                html += `<tr><td class="py-2">${i.name}</td><td>${i.type}</td><td>${i.source}</td><td>${i.destination}</td></tr>`;
+                html += `<tr class="border-b border-gray-200 dark:border-gray-700"><td class="py-2 text-gray-700 dark:text-gray-300">${i.name}</td><td class="text-gray-700 dark:text-gray-300">${i.type}</td><td class="text-gray-700 dark:text-gray-300">${i.source}</td><td class="text-gray-700 dark:text-gray-300">${i.destination}</td></tr>`;
             });
             html += '</tbody></table>';
             evt.detail.target.innerHTML = html;

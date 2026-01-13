@@ -1,11 +1,16 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}IBN Platform{% endblock %}</title>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
     <style>
         .htmx-indicator {
             opacity: 0;
@@ -18,11 +23,17 @@
             opacity: 1;
         }
     </style>
+    <script>
+        // Apply dark mode preference immediately to prevent flash
+        if (localStorage.getItem('darkMode') === 'false') {
+            document.documentElement.classList.remove('dark');
+        }
+    </script>
     {% block head %}{% endblock %}
 </head>
-<body class="bg-gray-100 min-h-screen">
+<body class="bg-gray-100 dark:bg-gray-900 min-h-screen transition-colors duration-200">
     {% block nav %}
-    <nav class="bg-indigo-600 shadow-lg">
+    <nav class="bg-indigo-600 dark:bg-gray-800 shadow-lg">
         <div class="max-w-7xl mx-auto px-4">
             <div class="flex justify-between h-16">
                 <div class="flex">
@@ -30,17 +41,28 @@
                         <span class="text-white font-bold text-xl">IBN Platform</span>
                     </div>
                     <div class="hidden md:ml-6 md:flex md:space-x-8">
-                        <a href="/" class="text-white hover:text-indigo-200 px-3 py-2 text-sm font-medium">Dashboard</a>
-                        <a href="/topology" class="text-white hover:text-indigo-200 px-3 py-2 text-sm font-medium">Topology</a>
-                        <a href="/intents" class="text-white hover:text-indigo-200 px-3 py-2 text-sm font-medium">Intents</a>
-                        <a href="/monitor" class="text-white hover:text-indigo-200 px-3 py-2 text-sm font-medium">Monitor</a>
-                        <a href="/history" class="text-white hover:text-indigo-200 px-3 py-2 text-sm font-medium">History</a>
+                        <a href="/" class="text-white hover:text-indigo-200 dark:hover:text-gray-300 px-3 py-2 text-sm font-medium">Dashboard</a>
+                        <a href="/topology" class="text-white hover:text-indigo-200 dark:hover:text-gray-300 px-3 py-2 text-sm font-medium">Topology</a>
+                        <a href="/intents" class="text-white hover:text-indigo-200 dark:hover:text-gray-300 px-3 py-2 text-sm font-medium">Intents</a>
+                        <a href="/monitor" class="text-white hover:text-indigo-200 dark:hover:text-gray-300 px-3 py-2 text-sm font-medium">Monitor</a>
+                        <a href="/history" class="text-white hover:text-indigo-200 dark:hover:text-gray-300 px-3 py-2 text-sm font-medium">History</a>
                     </div>
                 </div>
-                <div class="flex items-center">
+                <div class="flex items-center space-x-4">
+                    <!-- Dark Mode Toggle -->
+                    <button onclick="toggleDarkMode()" id="dark-mode-toggle" class="text-white hover:text-indigo-200 dark:hover:text-gray-300 p-2 rounded-lg" title="Toggle dark mode">
+                        <!-- Sun icon (shown in dark mode) -->
+                        <svg id="sun-icon" class="w-5 h-5 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                        </svg>
+                        <!-- Moon icon (shown in light mode) -->
+                        <svg id="moon-icon" class="w-5 h-5 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+                        </svg>
+                    </button>
                     {% if user %}
-                    <span class="text-indigo-200 mr-4">{{ user }}</span>
-                    <a href="/logout" class="text-white hover:text-indigo-200 text-sm font-medium">Logout</a>
+                    <span class="text-indigo-200 dark:text-gray-400">{{ user }}</span>
+                    <a href="/logout" class="text-white hover:text-indigo-200 dark:hover:text-gray-300 text-sm font-medium">Logout</a>
                     {% endif %}
                 </div>
             </div>
@@ -52,12 +74,36 @@
         {% block content %}{% endblock %}
     </main>
 
-    <footer class="bg-gray-800 text-gray-400 py-4 mt-8">
+    <footer class="bg-gray-800 dark:bg-gray-950 text-gray-400 py-4 mt-8">
         <div class="max-w-7xl mx-auto px-4 text-center text-sm">
             IBN Platform - Intent-Based Networking with Z3 Constraint Solving
         </div>
     </footer>
 
+    <script>
+        function toggleDarkMode() {
+            const html = document.documentElement;
+            const isDark = html.classList.contains('dark');
+
+            if (isDark) {
+                html.classList.remove('dark');
+                localStorage.setItem('darkMode', 'false');
+            } else {
+                html.classList.add('dark');
+                localStorage.setItem('darkMode', 'true');
+            }
+        }
+
+        // Initialize dark mode from localStorage
+        document.addEventListener('DOMContentLoaded', function() {
+            const darkMode = localStorage.getItem('darkMode');
+            if (darkMode === 'false') {
+                document.documentElement.classList.remove('dark');
+            } else {
+                document.documentElement.classList.add('dark');
+            }
+        });
+    </script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

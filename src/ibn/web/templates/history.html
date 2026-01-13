@@ -4,58 +4,58 @@
 
 {% block content %}
 <div class="mb-8">
-    <h1 class="text-3xl font-bold text-gray-900">Deployment History</h1>
-    <p class="text-gray-600">View and manage past deployments</p>
+    <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Deployment History</h1>
+    <p class="text-gray-600 dark:text-gray-400">View and manage past deployments</p>
 </div>
 
-<div class="bg-white rounded-lg shadow p-6">
+<div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
     <div id="history-list">
         {% if deployments %}
         <table class="min-w-full">
             <thead>
-                <tr class="border-b">
-                    <th class="text-left py-3">Intent</th>
-                    <th class="text-left">Timestamp</th>
-                    <th class="text-left">Status</th>
-                    <th class="text-left">Devices</th>
-                    <th class="text-left">Actions</th>
+                <tr class="border-b border-gray-200 dark:border-gray-700">
+                    <th class="text-left py-3 text-gray-900 dark:text-white">Intent</th>
+                    <th class="text-left text-gray-900 dark:text-white">Timestamp</th>
+                    <th class="text-left text-gray-900 dark:text-white">Status</th>
+                    <th class="text-left text-gray-900 dark:text-white">Devices</th>
+                    <th class="text-left text-gray-900 dark:text-white">Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for d in deployments %}
-                <tr class="border-b hover:bg-gray-50">
-                    <td class="py-3 font-medium">{{ d.intent_name }}</td>
-                    <td>{{ d.timestamp[:19] }}</td>
+                <tr class="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <td class="py-3 font-medium text-gray-900 dark:text-white">{{ d.intent_name }}</td>
+                    <td class="text-gray-700 dark:text-gray-300">{{ d.timestamp[:19] }}</td>
                     <td>
                         {% if d.success %}
-                        <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-sm">Success</span>
+                        <span class="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300 rounded-full text-sm">Success</span>
                         {% else %}
-                        <span class="px-2 py-1 bg-red-100 text-red-800 rounded-full text-sm">Failed</span>
+                        <span class="px-2 py-1 bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300 rounded-full text-sm">Failed</span>
                         {% endif %}
                     </td>
-                    <td>{{ d.devices|length }} devices</td>
+                    <td class="text-gray-700 dark:text-gray-300">{{ d.devices|length }} devices</td>
                     <td>
                         <button onclick="viewDeployment('{{ d.id }}')"
-                            class="text-indigo-600 hover:text-indigo-800 mr-2">View</button>
+                            class="text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 mr-2">View</button>
                         <button onclick="rollbackDeployment('{{ d.id }}')"
-                            class="text-orange-600 hover:text-orange-800">Rollback</button>
+                            class="text-orange-600 dark:text-orange-400 hover:text-orange-800 dark:hover:text-orange-300">Rollback</button>
                     </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
         {% else %}
-        <p class="text-gray-500">No deployments yet. Deploy an intent to see history here.</p>
+        <p class="text-gray-500 dark:text-gray-400">No deployments yet. Deploy an intent to see history here.</p>
         {% endif %}
     </div>
 </div>
 
 <!-- Deployment Detail Modal -->
-<div id="deployment-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
-    <div class="relative top-20 mx-auto p-5 border w-3/4 shadow-lg rounded-md bg-white">
+<div id="deployment-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 dark:bg-gray-900 dark:bg-opacity-75 overflow-y-auto h-full w-full">
+    <div class="relative top-20 mx-auto p-5 border border-gray-200 dark:border-gray-700 w-3/4 shadow-lg rounded-md bg-white dark:bg-gray-800">
         <div class="flex justify-between items-center mb-4">
-            <h3 class="text-lg font-semibold">Deployment Details</h3>
-            <button onclick="closeModal()" class="text-gray-500 hover:text-gray-700">&times;</button>
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Deployment Details</h3>
+            <button onclick="closeModal()" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">&times;</button>
         </div>
         <div id="deployment-detail"></div>
     </div>
@@ -67,7 +67,7 @@
 async function viewDeployment(id) {
     const modal = document.getElementById('deployment-modal');
     const detail = document.getElementById('deployment-detail');
-    detail.innerHTML = '<div class="animate-pulse">Loading...</div>';
+    detail.innerHTML = '<div class="animate-pulse text-gray-500 dark:text-gray-400">Loading...</div>';
     modal.classList.remove('hidden');
 
     try {
@@ -75,20 +75,20 @@ async function viewDeployment(id) {
         const data = await response.json();
 
         let html = '<div class="space-y-4">';
-        html += `<p><strong>Intent:</strong> ${data.intent_name}</p>`;
-        html += `<p><strong>Timestamp:</strong> ${data.timestamp}</p>`;
-        html += `<p><strong>Status:</strong> ${data.status}</p>`;
+        html += `<p class="text-gray-700 dark:text-gray-300"><strong class="text-gray-900 dark:text-white">Intent:</strong> ${data.intent_name}</p>`;
+        html += `<p class="text-gray-700 dark:text-gray-300"><strong class="text-gray-900 dark:text-white">Timestamp:</strong> ${data.timestamp}</p>`;
+        html += `<p class="text-gray-700 dark:text-gray-300"><strong class="text-gray-900 dark:text-white">Status:</strong> ${data.status}</p>`;
 
-        html += '<h4 class="font-semibold mt-4">Configurations:</h4>';
+        html += '<h4 class="font-semibold mt-4 text-gray-900 dark:text-white">Configurations:</h4>';
         html += '<div class="space-y-2">';
         for (const [device, config] of Object.entries(data.configs || {})) {
-            html += `<details class="border rounded p-2"><summary class="cursor-pointer font-medium">${device}</summary><pre class="mt-2 p-2 bg-gray-100 rounded text-sm overflow-x-auto">${config}</pre></details>`;
+            html += `<details class="border border-gray-200 dark:border-gray-700 rounded p-2"><summary class="cursor-pointer font-medium text-gray-900 dark:text-white">${device}</summary><pre class="mt-2 p-2 bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-green-400 rounded text-sm overflow-x-auto">${config}</pre></details>`;
         }
         html += '</div></div>';
 
         detail.innerHTML = html;
     } catch (err) {
-        detail.innerHTML = `<p class="text-red-600">Error loading deployment: ${err.message}</p>`;
+        detail.innerHTML = `<p class="text-red-600 dark:text-red-400">Error loading deployment: ${err.message}</p>`;
     }
 }
 

@@ -1,32 +1,32 @@
 {% if devices %}
 <table class="min-w-full">
     <thead>
-        <tr class="border-b">
-            <th class="text-left py-2">Device</th>
-            <th class="text-left">IP</th>
-            <th class="text-left">Vendor</th>
-            <th class="text-left">Status</th>
-            <th class="text-left">Message</th>
+        <tr class="border-b border-gray-200 dark:border-gray-700">
+            <th class="text-left py-2 text-gray-900 dark:text-white">Device</th>
+            <th class="text-left text-gray-900 dark:text-white">IP</th>
+            <th class="text-left text-gray-900 dark:text-white">Vendor</th>
+            <th class="text-left text-gray-900 dark:text-white">Status</th>
+            <th class="text-left text-gray-900 dark:text-white">Message</th>
         </tr>
     </thead>
     <tbody>
         {% for device in devices %}
-        <tr class="border-b hover:bg-gray-50">
-            <td class="py-2 font-medium">{{ device.name }}</td>
-            <td class="font-mono text-sm">{{ device.mgmt_ip }}</td>
-            <td>{{ device.vendor }}</td>
+        <tr class="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
+            <td class="py-2 font-medium text-gray-900 dark:text-white">{{ device.name }}</td>
+            <td class="font-mono text-sm text-gray-700 dark:text-gray-300">{{ device.mgmt_ip }}</td>
+            <td class="text-gray-700 dark:text-gray-300">{{ device.vendor }}</td>
             <td>
                 {% if device.status == 'up' %}
-                <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-sm">Up</span>
+                <span class="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300 rounded-full text-sm">Up</span>
                 {% elif device.status == 'down' %}
-                <span class="px-2 py-1 bg-red-100 text-red-800 rounded-full text-sm">Down</span>
+                <span class="px-2 py-1 bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300 rounded-full text-sm">Down</span>
                 {% elif device.status == 'no_credentials' %}
-                <span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm">No Creds</span>
+                <span class="px-2 py-1 bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-300 rounded-full text-sm">No Creds</span>
                 {% else %}
-                <span class="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-sm">{{ device.status }}</span>
+                <span class="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300 rounded-full text-sm">{{ device.status }}</span>
                 {% endif %}
             </td>
-            <td class="text-sm text-gray-600 max-w-xs truncate" title="{{ device.message | default('') }}">
+            <td class="text-sm text-gray-600 dark:text-gray-400 max-w-xs truncate" title="{{ device.message | default('') }}">
                 {{ device.message | default('') | truncate(50) }}
             </td>
         </tr>
@@ -34,5 +34,5 @@
     </tbody>
 </table>
 {% else %}
-<p class="text-gray-500">No devices configured</p>
+<p class="text-gray-500 dark:text-gray-400">No devices configured</p>
 {% endif %}
