@@ -63,5 +63,8 @@ uv.lock
 # Logs
 *.log
 
+# SQLite databases
+*.db
+
 # Personal content (YouTube/LinkedIn)
 content/

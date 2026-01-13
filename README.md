@@ -53,16 +53,17 @@ Solution found in 8ms:
 | **Z3 Constraint Solver** | Finds optimal diverse paths that standard algorithms can't |
 | **Failure Domain Awareness** | Ensures backup paths don't share failure points with primary |
 | **What-If Analysis** | Simulate node/domain failures before they happen |
-| **Config Generation** | Jinja2 templates produce IOS-XE BGP configurations |
+| **Config Generation** | Jinja2 templates produce IOS-XE BGP/OSPF/SR-MPLS configurations |
 | **Live Deployment** | Push configs via SSH with Netmiko |
 | **Config Diff** | Preview exactly what will change before deploying |
 | **Topology Visualization** | ASCII diagrams showing network and computed paths |
 | **Real-Time Monitoring** | Watch BGP/BFD status with live updates |
-| **Verification** | Confirm BGP neighbors and BFD sessions are up |
+| **Verification** | Confirm BGP/OSPF neighbors and BFD sessions are up |
 | **Deployment History** | Track all deployments with timestamps and config snapshots |
 | **Rollback** | Restore previous configurations with one command |
 | **Compliance Monitoring** | Continuous verification that network matches intent |
 | **NETCONF/RESTCONF** | Modern API-based device connectivity (YANG models) |
+| **Web Dashboard** | Browser-based UI for intent management with full workflow support |
 
 ## Quick Start
 
@@ -132,17 +133,48 @@ ibn verify --protocol netconf -u admin -p <password> --bgp
 ibn verify --protocol restconf -u admin -p <password> --bgp
 ```
 
+### Web Dashboard
+
+The platform includes a browser-based dashboard for managing intents through the complete workflow.
+
+```bash
+# Set device credentials
+export IBN_DEVICE_USER=admin
+export IBN_DEVICE_PASS="your_password"
+
+# Start the web server
+PYTHONPATH=src python -m uvicorn ibn.web.app:create_app --factory --host 127.0.0.1 --port 8000
+
+# Open http://127.0.0.1:8000 in your browser
+# Default login: admin / admin
+```
+
+**Dashboard Features:**
+- **Intent Management** - Create, view, and delete intents with SQLite persistence
+- **Protocol Selection** - Choose BGP, OSPF, or SR-MPLS for path establishment
+- **Workflow Stages** - Solve → View Configs → Deploy → Verify → Active
+- **Re-check Status** - View live OSPF/BGP neighbor status on active intents
+- **Dark Mode** - Toggle between light and dark themes
+
+**Intent Workflow:**
+1. **Create** - Define source, destination, and routing protocol
+2. **Solve** - Z3 finds optimal primary and backup paths
+3. **Configs** - View generated Cisco IOS-XE configurations
+4. **Deploy** - Push configs to devices via SSH
+5. **Verify** - Confirm routing neighbors are established
+6. **Active** - Intent is running; use Re-check to monitor status
+
 ## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                        CLI Layer                            │
-│  ibn solve | ibn deploy | ibn verify | ibn what-if         │
+│                     Interface Layer                         │
+│  CLI: ibn solve | deploy | verify     Web: FastAPI + HTMX   │
 └─────────────────────────────────────────────────────────────┘
                               │
 ┌─────────────────────────────────────────────────────────────┐
 │                     Intent Parser                           │
-│  YAML → Pydantic Models → Validation                        │
+│  YAML/JSON → Pydantic Models → Validation                   │
 └─────────────────────────────────────────────────────────────┘
                               │
 ┌─────────────────────────────────────────────────────────────┐
@@ -152,12 +184,12 @@ ibn verify --protocol restconf -u admin -p <password> --bgp
                               │
 ┌─────────────────────────────────────────────────────────────┐
 │                   Config Generator                          │
-│  Service Models + Jinja2 Templates → Device Configs         │
+│  BGP / OSPF / SR-MPLS → Cisco IOS-XE Device Configs         │
 └─────────────────────────────────────────────────────────────┘
                               │
 ┌─────────────────────────────────────────────────────────────┐
 │                   Device Connector                          │
-│  Netmiko SSH → Deploy → Verify                              │
+│  Netmiko SSH → Deploy → Verify → Re-check                   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -223,15 +255,26 @@ ibn-platform/
 │   │   └── watcher.py      # Real-time network monitoring
 │   ├── state/
 │   │   └── history.py      # Deployment history & rollback
-│   └── compliance/
-│       └── checker.py      # Compliance monitoring & verification
+│   ├── compliance/
+│   │   └── checker.py      # Compliance monitoring & verification
+│   └── web/
+│       ├── app.py          # FastAPI application factory
+│       ├── lifecycle.py    # Intent state machine
+│       ├── persistence.py  # SQLite intent repository
+│       ├── routes/
+│       │   └── intents.py  # Intent API & config generators
+│       └── templates/
+│           ├── base.html   # Base template with dark mode
+│           ├── intents.html # Intent management dashboard
+│           └── login.html  # Authentication page
 ├── tests/
-│   └── unit/               # Unit tests (100 tests)
-│       ├── test_compliance.py # Compliance checker tests
-│       ├── test_history.py    # Deployment history tests
-│       ├── test_intent.py     # Intent parser tests
-│       ├── test_netconf.py    # NETCONF/RESTCONF tests
-│       └── test_solver.py     # Z3 solver tests
+│   └── unit/               # Unit tests
+│       ├── test_compliance.py    # Compliance checker tests
+│       ├── test_history.py       # Deployment history tests
+│       ├── test_intent.py        # Intent parser tests
+│       ├── test_intent_workflow.py # Web workflow tests
+│       ├── test_netconf.py       # NETCONF/RESTCONF tests
+│       └── test_solver.py        # Z3 solver tests
 ├── templates/
 │   ├── ios-xe/
 │   │   └── bgp.j2          # BGP config template
@@ -256,6 +299,9 @@ ibn-platform/
 - **Netmiko** - SSH device connections
 - **ncclient** - NETCONF client for YANG-based config
 - **requests** - RESTCONF REST API client
+- **FastAPI** - Web framework for dashboard API
+- **HTMX** - Dynamic HTML interactions without JavaScript frameworks
+- **Tailwind CSS** - Utility-first CSS styling
 
 ## Roadmap
 
@@ -270,11 +316,12 @@ ibn-platform/
 - [x] Real-time network monitoring
 - [x] Deployment history tracking
 - [x] Rollback capability
-- [x] Unit test suite (100 tests)
+- [x] Unit test suite
 - [x] Continuous compliance monitoring
 - [x] NETCONF/RESTCONF support
 - [x] Multi-vendor templates (Cisco, Arista, Juniper)
-- [ ] Web dashboard
+- [x] Web dashboard with intent workflow
+- [x] Multi-protocol support (BGP, OSPF, SR-MPLS)
 
 ## License
 
