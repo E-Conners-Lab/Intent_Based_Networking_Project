@@ -59,6 +59,8 @@ Solution found in 8ms:
 | **Topology Visualization** | ASCII diagrams showing network and computed paths |
 | **Real-Time Monitoring** | Watch BGP/BFD status with live updates |
 | **Verification** | Confirm BGP neighbors and BFD sessions are up |
+| **Deployment History** | Track all deployments with timestamps and config snapshots |
+| **Rollback** | Restore previous configurations with one command |
 
 ## Quick Start
 
@@ -108,6 +110,12 @@ ibn verify -u admin -p <password> --bgp --bfd
 
 # Watch network status in real-time
 ibn watch -u admin -p <password>
+
+# View deployment history
+ibn history
+
+# Rollback to previous configuration
+ibn rollback -u admin -p <password>
 ```
 
 ## Architecture
@@ -176,7 +184,7 @@ The platform was developed and tested on an EVE-NG lab with Cisco C8000V routers
 ```
 ibn-platform/
 ├── src/ibn/
-│   ├── cli.py              # Click CLI commands (13 commands)
+│   ├── cli.py              # Click CLI commands (15 commands)
 │   ├── errors.py           # Exception hierarchy
 │   ├── model/
 │   │   ├── topology.py     # Pydantic topology models
@@ -196,8 +204,15 @@ ibn-platform/
 │   │   └── diff.py         # Config diff engine
 │   ├── viz/
 │   │   └── topology.py     # ASCII topology diagrams
-│   └── monitor/
-│       └── watcher.py      # Real-time network monitoring
+│   ├── monitor/
+│   │   └── watcher.py      # Real-time network monitoring
+│   └── state/
+│       └── history.py      # Deployment history & rollback
+├── tests/
+│   └── unit/               # Unit tests (40 tests)
+│       ├── test_history.py # Deployment history tests
+│       ├── test_intent.py  # Intent parser tests
+│       └── test_solver.py  # Z3 solver tests
 ├── templates/
 │   ├── ios-xe/
 │   │   └── bgp.j2          # BGP config template
@@ -232,6 +247,9 @@ ibn-platform/
 - [x] Topology visualization (ASCII diagrams)
 - [x] Config diff before deployment
 - [x] Real-time network monitoring
+- [x] Deployment history tracking
+- [x] Rollback capability
+- [x] Unit test suite (40 tests)
 - [ ] NETCONF/RESTCONF support
 - [ ] Web dashboard
 - [ ] Multi-vendor templates

@@ -62,3 +62,6 @@ uv.lock
 
 # Logs
 *.log
+
+# Personal content (YouTube/LinkedIn)
+content/

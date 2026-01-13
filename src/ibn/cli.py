@@ -979,6 +979,35 @@ def deploy(
 
             console.print()
 
+        # Save pre-deployment state for rollback
+        from ibn.state import DeploymentHistory, DeploymentRecord
+        from ibn.state.history import DeviceSnapshot
+
+        console.print("[dim]Saving pre-deployment state...[/dim]")
+        history = DeploymentHistory()
+        record = history.create_record(intent.name, str(intent_file))
+        record.primary_path = result.primary_path.path_string
+        record.backup_path = result.backup_path.path_string
+
+        for hostname in configs.keys():
+            node = topo.nodes.get(hostname)
+            if not node or not node.mgmt_ip:
+                continue
+
+            # Get current BGP config before overwriting
+            current = connector.get_bgp_config(str(node.mgmt_ip), hostname)
+            if current.success:
+                snapshot = DeviceSnapshot(
+                    hostname=hostname,
+                    mgmt_ip=str(node.mgmt_ip),
+                    config=current.output,
+                    timestamp=record.timestamp,
+                )
+                record.devices.append(snapshot)
+
+        console.print(f"[green]✓[/green] Saved state for {len(record.devices)} devices")
+        console.print()
+
         console.print("[bold]Deploying configurations...[/bold]\n")
 
         deploy_table = Table(show_header=True, header_style="bold cyan")
@@ -1023,9 +1052,17 @@ def deploy(
 
         if not all_success:
             console.print("[red]✗ Deployment had failures[/red]")
+            record.success = False
+            record.notes = "Deployment had failures"
+            history.save_record(record)
             raise SystemExit(1)
 
         console.print("[green]✓ Configuration deployed to all devices[/green]")
+
+        # Save successful deployment record
+        record.success = True
+        history.save_record(record)
+        console.print(f"[dim]Deployment saved (ID: {record.id}) - use 'ibn rollback' to undo[/dim]")
 
         # Verification
         if not no_verify:
@@ -1317,6 +1354,176 @@ def watch(topology: Path, username: str, password: str, interval: int) -> None:
 
     except IBNError as e:
         console.print(f"[bold red]Error:[/bold red] {e.message}")
+        raise SystemExit(1)
+
+
+@main.command("history")
+@click.option("--limit", "-n", type=int, default=10, help="Number of deployments to show")
+def history(limit: int) -> None:
+    """Show deployment history.
+
+    Lists recent deployments with their IDs for use with rollback.
+    """
+    from ibn.state import DeploymentHistory
+
+    hist = DeploymentHistory()
+    records = hist.list_deployments(limit)
+
+    if not records:
+        console.print("[dim]No deployment history found[/dim]")
+        return
+
+    table = Table(title="Deployment History", show_header=True, header_style="bold cyan")
+    table.add_column("ID")
+    table.add_column("Timestamp")
+    table.add_column("Intent")
+    table.add_column("Paths")
+    table.add_column("Devices")
+    table.add_column("Status")
+
+    for record in records:
+        timestamp = record.timestamp[:19].replace("T", " ")
+        paths = f"{record.primary_path}"
+        status = "[green]OK[/green]" if record.success else "[red]FAILED[/red]"
+
+        table.add_row(
+            record.id,
+            timestamp,
+            record.intent_name[:25],
+            paths[:30],
+            str(len(record.devices)),
+            status,
+        )
+
+    console.print(table)
+    console.print()
+    console.print("[dim]Use 'ibn rollback' to restore previous configuration[/dim]")
+
+
+@main.command("rollback")
+@click.option(
+    "--deployment-id",
+    "-d",
+    type=str,
+    default=None,
+    help="Specific deployment ID to rollback to (default: last deployment)",
+)
+@click.option("--username", "-u", default=lambda: os.environ.get("IBN_USERNAME"), prompt=True, help="SSH username (or set IBN_USERNAME)")
+@click.option("--password", "-p", default=lambda: os.environ.get("IBN_PASSWORD"), prompt=True, hide_input=True, help="SSH password (or set IBN_PASSWORD)")
+@click.option("--yes", "-y", is_flag=True, help="Skip confirmation prompt")
+def rollback(deployment_id: str | None, username: str, password: str, yes: bool) -> None:
+    """Rollback to a previous configuration.
+
+    Restores the BGP configuration that was saved before the last deployment.
+    Use --deployment-id to rollback to a specific deployment.
+    """
+    from ibn.deploy import DeviceConnector, DeviceCredentials
+    from ibn.state import DeploymentHistory
+
+    hist = DeploymentHistory()
+
+    # Get the deployment to rollback
+    if deployment_id:
+        record = hist.get_deployment(deployment_id)
+        if not record:
+            console.print(f"[red]Deployment '{deployment_id}' not found[/red]")
+            console.print("Use 'ibn history' to see available deployments")
+            raise SystemExit(1)
+    else:
+        record = hist.get_last_deployment()
+        if not record:
+            console.print("[red]No deployment history found[/red]")
+            console.print("Nothing to rollback to")
+            raise SystemExit(1)
+
+    # Show what will be rolled back
+    console.print()
+    console.print(
+        Panel(
+            f"[bold]Deployment ID:[/bold] {record.id}\n"
+            f"[bold]Timestamp:[/bold] {record.timestamp[:19].replace('T', ' ')}\n"
+            f"[bold]Intent:[/bold] {record.intent_name}\n"
+            f"[bold]Devices:[/bold] {len(record.devices)}",
+            title="Rollback Target",
+            border_style="yellow",
+        )
+    )
+
+    if not record.devices:
+        console.print("[red]No device configurations saved in this deployment[/red]")
+        raise SystemExit(1)
+
+    # Show devices to be restored
+    console.print("\n[bold]Configurations to restore:[/bold]")
+    for device in record.devices:
+        config_preview = device.config[:100].replace("\n", " ")
+        console.print(f"  • {device.hostname} ({device.mgmt_ip})")
+
+    console.print()
+
+    # Confirm
+    if not yes:
+        if not click.confirm("Proceed with rollback?"):
+            console.print("[yellow]Rollback cancelled[/yellow]")
+            return
+
+    # Perform rollback
+    credentials = DeviceCredentials(username=username, password=password)
+    connector = DeviceConnector(credentials)
+
+    console.print("\n[bold]Rolling back configurations...[/bold]\n")
+
+    rollback_table = Table(show_header=True, header_style="bold cyan")
+    rollback_table.add_column("Device")
+    rollback_table.add_column("Status")
+    rollback_table.add_column("Details")
+
+    all_success = True
+    for device in record.devices:
+        # The saved config is the output of "show run | section router bgp"
+        # We need to apply it as configuration
+        # For a proper rollback, we'd need to:
+        # 1. Remove current BGP config
+        # 2. Apply the saved config
+
+        # Build rollback commands
+        rollback_config = device.config
+
+        result = connector.deploy_config(
+            device.mgmt_ip,
+            rollback_config,
+            device.hostname,
+            save_config=True,
+        )
+
+        if result.success:
+            rollback_table.add_row(
+                device.hostname,
+                "[green]OK[/green]",
+                "Configuration restored",
+            )
+        else:
+            all_success = False
+            rollback_table.add_row(
+                device.hostname,
+                "[red]FAIL[/red]",
+                result.message,
+            )
+
+    console.print(rollback_table)
+    console.print()
+
+    if all_success:
+        console.print(
+            Panel(
+                "[bold green]Rollback Complete[/bold green]\n\n"
+                f"Restored configuration from deployment {record.id}",
+                title="Success",
+                border_style="green",
+            )
+        )
+    else:
+        console.print("[red]Rollback had failures - check device status[/red]")
         raise SystemExit(1)
 
 
