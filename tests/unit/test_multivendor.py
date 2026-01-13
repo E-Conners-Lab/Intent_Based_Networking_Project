@@ -207,7 +207,7 @@ class TestDeviceConnectorVendor:
         from ibn.deploy.connector import DeviceConnector
 
         device_type = DeviceConnector._get_netmiko_device_type(Vendor.CISCO_IOS_XE)
-        assert device_type == "cisco_xe"
+        assert device_type == "cisco_ios"  # cisco_ios works better for keyboard-interactive auth
 
     def test_get_netmiko_device_type_arista(self):
         """Test Netmiko device type for Arista."""
