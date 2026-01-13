@@ -54,7 +54,7 @@ class NetconfConnector:
     NS_NATIVE = "http://cisco.com/ns/yang/Cisco-IOS-XE-native"
     NS_BGP = "http://cisco.com/ns/yang/Cisco-IOS-XE-bgp"
     NS_BGP_OPER = "http://cisco.com/ns/yang/Cisco-IOS-XE-bgp-oper"
-    NS_BFD_OPER = "http://cisco.com/ns/yang/Cisco-IOS-XE-bfd-oper"
+    NS_BFD_OC = "http://openconfig.net/yang/bfd"  # OpenConfig BFD model
 
     def __init__(
         self,
@@ -209,10 +209,11 @@ class NetconfConnector:
         Returns:
             ConnectionResult with BFD session state
         """
+        # Use OpenConfig BFD model (widely supported on IOS-XE)
         bfd_oper_filter = f"""
-            <bfd-state xmlns="{self.NS_BFD_OPER}">
-                <sessions/>
-            </bfd-state>
+            <bfd xmlns="{self.NS_BFD_OC}">
+                <interfaces/>
+            </bfd>
         """
         try:
             with self._connect(host) as conn:
@@ -264,14 +265,16 @@ class NetconfConnector:
         return "\n".join(lines)
 
     def _format_bfd_state(self, xml_data: str) -> str:
-        """Format BFD state XML for display."""
+        """Format BFD state XML for display (OpenConfig model)."""
         lines = ["BFD Session Status (via NETCONF):", "=" * 50]
         try:
             root = ET.fromstring(xml_data)
+            # OpenConfig BFD uses <peer> elements with <state> children
             for elem in root.iter():
-                if "session" in elem.tag.lower() and "sessions" not in elem.tag.lower():
-                    remote = elem.find(".//{*}remote-addr")
-                    state = elem.find(".//{*}local-state")
+                if elem.tag.endswith("}peer") or elem.tag == "peer":
+                    # Look for state/remote-address and state/session-state
+                    remote = elem.find(".//{*}remote-address")
+                    state = elem.find(".//{*}session-state")
                     if remote is not None:
                         r = remote.text or "unknown"
                         s = state.text if state is not None else "unknown"
@@ -298,7 +301,7 @@ class RestconfConnector:
     PATH_NATIVE = "/data/Cisco-IOS-XE-native:native"
     PATH_BGP = "/data/Cisco-IOS-XE-native:native/router/bgp"
     PATH_BGP_OPER = "/data/Cisco-IOS-XE-bgp-oper:bgp-state-data"
-    PATH_BFD_OPER = "/data/Cisco-IOS-XE-bfd-oper:bfd-state"
+    PATH_BFD_OC = "/data/openconfig-bfd:bfd"  # OpenConfig BFD model
 
     def __init__(
         self,
@@ -512,7 +515,7 @@ class RestconfConnector:
         Returns:
             ConnectionResult with BFD session state
         """
-        url = self._build_url(host, self.PATH_BFD_OPER)
+        url = self._build_url(host, self.PATH_BFD_OC)
         try:
             response = requests.get(
                 url,
@@ -565,19 +568,23 @@ class RestconfConnector:
         return "\n".join(lines)
 
     def _format_bfd_sessions(self, data: dict) -> str:
-        """Format BFD session data for display."""
+        """Format BFD session data for display (OpenConfig model)."""
         lines = ["BFD Session Status (via RESTCONF):", "=" * 50]
 
         try:
-            sessions = (
-                data.get("Cisco-IOS-XE-bfd-oper:bfd-state", {})
-                .get("sessions", {})
-                .get("session", [])
+            # OpenConfig BFD structure: bfd/interfaces/interface[]/peers/peer[]
+            interfaces = (
+                data.get("openconfig-bfd:bfd", {})
+                .get("interfaces", {})
+                .get("interface", [])
             )
-            for session in sessions:
-                remote = session.get("remote-addr", "unknown")
-                state = session.get("local-state", "unknown")
-                lines.append(f"  {remote}: {state}")
+            for interface in interfaces:
+                peers = interface.get("peers", {}).get("peer", [])
+                for peer in peers:
+                    state_data = peer.get("state", {})
+                    remote = state_data.get("remote-address", "unknown")
+                    state = state_data.get("session-state", "unknown")
+                    lines.append(f"  {remote}: {state}")
         except (KeyError, TypeError):
             lines.append("  Unable to parse session data")
 
