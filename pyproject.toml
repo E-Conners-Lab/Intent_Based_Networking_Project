@@ -15,6 +15,13 @@ dependencies = [
     "netmiko>=4.6.0",
     "ncclient>=0.6.15",
     "requests>=2.31",
+    # Web dashboard
+    "fastapi>=0.109",
+    "uvicorn[standard]>=0.27",
+    "python-multipart>=0.0.6",
+    "itsdangerous>=2.1",
+    "passlib[bcrypt]>=1.7",
+    "slowapi>=0.1.9",
 ]
 
 [project.scripts]
@@ -31,6 +38,7 @@ packages = ["src/ibn"]
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
+    "httpx>=0.26",
     "ruff>=0.1",
     "mypy>=1.8",
 ]

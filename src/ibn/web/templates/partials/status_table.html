@@ -1,0 +1,32 @@
+{% if devices %}
+<table class="min-w-full">
+    <thead>
+        <tr class="border-b">
+            <th class="text-left py-2">Device</th>
+            <th class="text-left">IP</th>
+            <th class="text-left">Vendor</th>
+            <th class="text-left">Status</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for device in devices %}
+        <tr class="border-b hover:bg-gray-50">
+            <td class="py-2 font-medium">{{ device.name }}</td>
+            <td>{{ device.mgmt_ip }}</td>
+            <td>{{ device.vendor }}</td>
+            <td>
+                {% if device.status == 'up' %}
+                <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-sm">Up</span>
+                {% elif device.status == 'down' %}
+                <span class="px-2 py-1 bg-red-100 text-red-800 rounded-full text-sm">Down</span>
+                {% else %}
+                <span class="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-sm">{{ device.status }}</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p class="text-gray-500">No devices configured</p>
+{% endif %}

@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block title %}Topology - IBN Platform{% endblock %}
+
+{% block head %}
+<script src="https://d3js.org/d3.v7.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <h1 class="text-3xl font-bold text-gray-900">Network Topology</h1>
+    <p class="text-gray-600">Interactive network visualization</p>
+</div>
+
+<div class="bg-white rounded-lg shadow p-6">
+    <div id="topology-container" class="w-full" style="height: 500px;">
+        <svg id="topology-svg" class="w-full h-full"></svg>
+    </div>
+</div>
+
+<div class="mt-6 bg-white rounded-lg shadow p-6">
+    <h2 class="text-xl font-semibold text-gray-900 mb-4">Topology Data</h2>
+    <div id="topology-data" hx-get="/api/topology" hx-trigger="load" hx-swap="innerHTML">
+        <div class="animate-pulse">Loading...</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    fetch('/api/topology')
+        .then(response => response.json())
+        .then(data => {
+            renderTopology(data);
+            renderDataTable(data);
+        });
+});
+
+function renderTopology(data) {
+    const svg = d3.select("#topology-svg");
+    const width = document.getElementById('topology-container').clientWidth;
+    const height = 500;
+
+    svg.attr("viewBox", [0, 0, width, height]);
+
+    // Clear previous
+    svg.selectAll("*").remove();
+
+    if (!data.nodes || data.nodes.length === 0) {
+        svg.append("text")
+            .attr("x", width / 2)
+            .attr("y", height / 2)
+            .attr("text-anchor", "middle")
+            .text("No topology data available");
+        return;
+    }
+
+    // Create simulation
+    const simulation = d3.forceSimulation(data.nodes)
+        .force("link", d3.forceLink(data.edges).id(d => d.id).distance(150))
+        .force("charge", d3.forceManyBody().strength(-400))
+        .force("center", d3.forceCenter(width / 2, height / 2));
+
+    // Draw edges
+    const link = svg.append("g")
+        .selectAll("line")
+        .data(data.edges)
+        .join("line")
+        .attr("stroke", "#999")
+        .attr("stroke-opacity", 0.6)
+        .attr("stroke-width", 2);
+
+    // Draw nodes
+    const node = svg.append("g")
+        .selectAll("g")
+        .data(data.nodes)
+        .join("g")
+        .call(d3.drag()
+            .on("start", dragstarted)
+            .on("drag", dragged)
+            .on("end", dragended));
+
+    node.append("circle")
+        .attr("r", 25)
+        .attr("fill", "#4f46e5");
+
+    node.append("text")
+        .text(d => d.label)
+        .attr("text-anchor", "middle")
+        .attr("dy", 4)
+        .attr("fill", "white")
+        .attr("font-size", "10px");
+
+    simulation.on("tick", () => {
+        link
+            .attr("x1", d => d.source.x)
+            .attr("y1", d => d.source.y)
+            .attr("x2", d => d.target.x)
+            .attr("y2", d => d.target.y);
+
+        node.attr("transform", d => `translate(${d.x},${d.y})`);
+    });
+
+    function dragstarted(event, d) {
+        if (!event.active) simulation.alphaTarget(0.3).restart();
+        d.fx = d.x;
+        d.fy = d.y;
+    }
+
+    function dragged(event, d) {
+        d.fx = event.x;
+        d.fy = event.y;
+    }
+
+    function dragended(event, d) {
+        if (!event.active) simulation.alphaTarget(0);
+        d.fx = null;
+        d.fy = null;
+    }
+}
+
+function renderDataTable(data) {
+    const container = document.getElementById('topology-data');
+    let html = '<div class="grid grid-cols-2 gap-6">';
+
+    // Nodes table
+    html += '<div><h3 class="font-semibold mb-2">Nodes</h3><table class="min-w-full"><thead><tr><th class="text-left">Name</th><th class="text-left">Vendor</th><th class="text-left">Loopback</th></tr></thead><tbody>';
+    data.nodes.forEach(n => {
+        html += `<tr><td class="py-1">${n.label}</td><td>${n.vendor}</td><td>${n.loopback}</td></tr>`;
+    });
+    html += '</tbody></table></div>';
+
+    // Edges table
+    html += '<div><h3 class="font-semibold mb-2">Links</h3><table class="min-w-full"><thead><tr><th class="text-left">Source</th><th class="text-left">Target</th><th class="text-left">Latency</th></tr></thead><tbody>';
+    data.edges.forEach(e => {
+        html += `<tr><td class="py-1">${e.source}</td><td>${e.target}</td><td>${e.latency}ms</td></tr>`;
+    });
+    html += '</tbody></table></div>';
+
+    html += '</div>';
+    container.innerHTML = html;
+}
+</script>
+{% endblock %}

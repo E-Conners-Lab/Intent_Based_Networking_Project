@@ -1,0 +1,46 @@
+<!-- Topology visualization partial for HTMX swap -->
+<div id="topology-content" class="space-y-6">
+    <div class="flex justify-between items-center">
+        <h2 class="text-2xl font-bold text-gray-900">Network Topology</h2>
+        <button
+            hx-get="/api/topology"
+            hx-target="#topology-graph"
+            hx-indicator="#loading"
+            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+            Refresh
+        </button>
+    </div>
+
+    <div id="topology-graph" class="bg-white rounded-lg shadow p-6 min-h-[500px]">
+        <div class="text-center text-gray-500">
+            <p>Loading topology visualization...</p>
+            <div id="loading" class="htmx-indicator">
+                <div class="animate-spin h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mt-4"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold mb-4">Failure Domains</h3>
+            <div id="domain-list" hx-get="/api/topology" hx-trigger="load" hx-swap="none">
+                <p class="text-gray-500">Loading domains...</p>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold mb-4">Network Statistics</h3>
+            <dl class="space-y-2">
+                <div class="flex justify-between">
+                    <dt class="text-gray-600">Total Nodes</dt>
+                    <dd id="node-count" class="font-semibold">-</dd>
+                </div>
+                <div class="flex justify-between">
+                    <dt class="text-gray-600">Total Links</dt>
+                    <dd id="edge-count" class="font-semibold">-</dd>
+                </div>
+            </dl>
+        </div>
+    </div>
+</div>
