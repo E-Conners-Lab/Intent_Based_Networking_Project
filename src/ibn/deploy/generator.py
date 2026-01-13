@@ -17,7 +17,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from ibn.intent.schema import Intent, PathResult
 from ibn.model.addressing import get_dst_ip, get_loopback_ip, get_src_ip
-from ibn.model.topology import Edge, Node, Topology
+from ibn.model.topology import Edge, Node, Topology, Vendor
 from ibn.services.schema import ServiceModel
 
 
@@ -109,6 +109,23 @@ class ConfigGenerator:
             lstrip_blocks=True,
         )
 
+    @staticmethod
+    def _get_template_path(vendor: Vendor) -> str:
+        """Get template path for a vendor.
+
+        Args:
+            vendor: The device vendor
+
+        Returns:
+            Template path string (e.g., "cisco-ios-xe/bgp.j2")
+        """
+        template_map = {
+            Vendor.CISCO_IOS_XE: "cisco-ios-xe/bgp.j2",
+            Vendor.ARISTA_EOS: "arista-eos/bgp.j2",
+            Vendor.JUNIPER_JUNOS: "juniper-junos/bgp.j2",
+        }
+        return template_map.get(vendor, "cisco-ios-xe/bgp.j2")
+
     def generate_all(self) -> dict[str, str]:
         """Generate configurations for all nodes in the paths.
 
@@ -123,8 +140,9 @@ class ConfigGenerator:
             nodes_in_paths.update(self.backup_path.path)
 
         for node_name in nodes_in_paths:
+            node = self.topology.nodes[node_name]
             node_config = self._build_node_config(node_name)
-            config_text = self._render_config(node_config)
+            config_text = self._render_config(node_config, node.vendor)
             configs[node_name] = config_text
 
         return configs
@@ -338,10 +356,19 @@ class ConfigGenerator:
 
         return interfaces
 
-    def _render_config(self, node_config: NodeConfig) -> str:
-        """Render configuration using Jinja2 template."""
+    def _render_config(self, node_config: NodeConfig, vendor: Vendor) -> str:
+        """Render configuration using Jinja2 template.
+
+        Args:
+            node_config: Configuration data for the node
+            vendor: Device vendor for template selection
+
+        Returns:
+            Rendered configuration string
+        """
         try:
-            template = self.jinja_env.get_template("ios-xe/bgp.j2")
+            template_path = self._get_template_path(vendor)
+            template = self.jinja_env.get_template(template_path)
             return template.render(
                 config=node_config,
                 intent=self.intent,

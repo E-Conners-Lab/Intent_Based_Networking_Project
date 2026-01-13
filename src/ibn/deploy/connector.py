@@ -11,6 +11,7 @@ from netmiko import ConnectHandler
 from netmiko.exceptions import NetmikoAuthenticationException, NetmikoTimeoutException
 
 from ibn.errors import IBNError
+from ibn.model.topology import Vendor
 
 
 class DeviceConnectionError(IBNError):
@@ -77,6 +78,57 @@ class DeviceConnector:
         self.credentials = credentials
         self.device_type = device_type
         self.timeout = timeout
+
+    @staticmethod
+    def _get_netmiko_device_type(vendor: Vendor) -> str:
+        """Get Netmiko device type for a vendor.
+
+        Args:
+            vendor: The device vendor
+
+        Returns:
+            Netmiko device_type string
+        """
+        device_type_map = {
+            Vendor.CISCO_IOS_XE: "cisco_xe",
+            Vendor.ARISTA_EOS: "arista_eos",
+            Vendor.JUNIPER_JUNOS: "juniper_junos",
+        }
+        return device_type_map.get(vendor, "cisco_xe")
+
+    @staticmethod
+    def _get_bgp_summary_command(vendor: Vendor) -> str:
+        """Get BGP summary command for a vendor.
+
+        Args:
+            vendor: The device vendor
+
+        Returns:
+            BGP summary show command
+        """
+        command_map = {
+            Vendor.CISCO_IOS_XE: "show ip bgp summary",
+            Vendor.ARISTA_EOS: "show ip bgp summary",
+            Vendor.JUNIPER_JUNOS: "show bgp summary",
+        }
+        return command_map.get(vendor, "show ip bgp summary")
+
+    @staticmethod
+    def _get_bfd_neighbors_command(vendor: Vendor) -> str:
+        """Get BFD neighbors command for a vendor.
+
+        Args:
+            vendor: The device vendor
+
+        Returns:
+            BFD neighbors show command
+        """
+        command_map = {
+            Vendor.CISCO_IOS_XE: "show bfd neighbors",
+            Vendor.ARISTA_EOS: "show bfd peers",
+            Vendor.JUNIPER_JUNOS: "show bfd session",
+        }
+        return command_map.get(vendor, "show bfd neighbors")
 
     def _get_connection_params(self, host: str) -> dict[str, Any]:
         """Build Netmiko connection parameters."""

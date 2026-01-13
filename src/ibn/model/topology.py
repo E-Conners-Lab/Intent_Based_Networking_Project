@@ -6,9 +6,18 @@ Pydantic models for representing network topology elements:
 - Failure domains (groups of elements that can fail together)
 """
 
+from enum import Enum
 from ipaddress import IPv4Address, IPv4Network
 
 from pydantic import BaseModel, Field, field_validator
+
+
+class Vendor(str, Enum):
+    """Supported network device vendors."""
+
+    CISCO_IOS_XE = "cisco-ios-xe"
+    ARISTA_EOS = "arista-eos"
+    JUNIPER_JUNOS = "juniper-junos"
 
 
 class Node(BaseModel):
@@ -22,6 +31,7 @@ class Node(BaseModel):
     loopback: IPv4Network = Field(..., description="Loopback address with mask")
     mgmt_ip: IPv4Address = Field(..., description="Management IP address")
     role: str | None = Field(default=None, description="Node role (e.g., 'core', 'branch')")
+    vendor: Vendor = Field(default=Vendor.CISCO_IOS_XE, description="Device vendor/OS")
 
     @field_validator("name")
     @classmethod
