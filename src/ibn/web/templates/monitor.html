@@ -56,7 +56,7 @@
     </div>
 </div>
 
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
         <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">BGP Neighbors</h2>
         <div id="bgp-panel">
@@ -65,10 +65,17 @@
     </div>
 
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-        <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">BFD Sessions</h2>
-        <div id="bfd-panel">
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">OSPF Neighbors</h2>
+        <div id="ospf-panel">
             <div class="animate-pulse text-gray-500 dark:text-gray-400">Loading...</div>
         </div>
+    </div>
+</div>
+
+<div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">BFD Sessions</h2>
+    <div id="bfd-panel">
+        <div class="animate-pulse text-gray-500 dark:text-gray-400">Loading...</div>
     </div>
 </div>
 {% endblock %}
@@ -99,17 +106,20 @@ async function refreshLive() {
 
     setLoading(document.getElementById('status-panel'), true);
     setLoading(document.getElementById('bgp-panel'), true);
+    setLoading(document.getElementById('ospf-panel'), true);
     setLoading(document.getElementById('bfd-panel'), true);
 
     try {
-        const [statusData, bgpData, bfdData] = await Promise.all([
+        const [statusData, bgpData, ospfData, bfdData] = await Promise.all([
             fetch('/api/monitor/status?live=true').then(r => r.json()),
             fetch('/api/monitor/bgp?live=true').then(r => r.json()),
+            fetch('/api/monitor/ospf?live=true').then(r => r.json()),
             fetch('/api/monitor/bfd?live=true').then(r => r.json()),
         ]);
 
         renderStatus(statusData);
         renderBGP(bgpData);
+        renderOSPF(ospfData);
         renderBFD(bfdData);
         updateLastRefresh();
     } catch (err) {
@@ -124,14 +134,16 @@ async function refreshLive() {
 
 async function refreshCached() {
     try {
-        const [statusData, bgpData, bfdData] = await Promise.all([
+        const [statusData, bgpData, ospfData, bfdData] = await Promise.all([
             fetch('/api/monitor/status').then(r => r.json()),
             fetch('/api/monitor/bgp').then(r => r.json()),
+            fetch('/api/monitor/ospf').then(r => r.json()),
             fetch('/api/monitor/bfd').then(r => r.json()),
         ]);
 
         renderStatus(statusData);
         renderBGP(bgpData);
+        renderOSPF(ospfData);
         renderBFD(bfdData);
         updateLastRefresh();
     } catch (err) {
@@ -206,6 +218,37 @@ function renderBGP(data) {
 
     let html = '<div class="space-y-4">';
     data.bgp_status.forEach(d => {
+        let statusClass = d.status === 'ok' ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300' :
+                          d.status === 'error' ? 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300' : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300';
+
+        html += '<div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">';
+        html += '<div class="flex justify-between items-center mb-2">';
+        html += '<h4 class="font-semibold text-gray-900 dark:text-white">' + d.device + '</h4>';
+        html += '<span class="text-sm text-gray-500 dark:text-gray-400">' + d.mgmt_ip + '</span>';
+        html += '<span class="px-2 py-1 ' + statusClass + ' rounded-full text-xs">' + d.status + '</span>';
+        html += '</div>';
+
+        if (d.output) {
+            html += '<pre class="text-xs bg-gray-900 text-green-400 p-3 rounded overflow-x-auto max-h-48">' + escapeHtml(d.output) + '</pre>';
+        } else {
+            html += '<p class="text-gray-500 dark:text-gray-400 text-sm">Click "Refresh Live" to fetch from device.</p>';
+        }
+        html += '</div>';
+    });
+    html += '</div>';
+
+    panel.innerHTML = html;
+}
+
+function renderOSPF(data) {
+    const panel = document.getElementById('ospf-panel');
+    if (!data.ospf_status || data.ospf_status.length === 0) {
+        panel.innerHTML = '<p class="text-gray-500 dark:text-gray-400">No OSPF data</p>';
+        return;
+    }
+
+    let html = '<div class="space-y-4">';
+    data.ospf_status.forEach(d => {
         let statusClass = d.status === 'ok' ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300' :
                           d.status === 'error' ? 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300' : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300';
 

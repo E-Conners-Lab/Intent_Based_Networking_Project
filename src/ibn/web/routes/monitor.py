@@ -62,6 +62,25 @@ def _get_bfd_status(connector: DeviceConnector, ip: str, name: str, vendor) -> d
     }
 
 
+def _get_ospf_status(connector: DeviceConnector, ip: str, name: str, vendor) -> dict:
+    """Get OSPF neighbor status for a device (runs in thread pool)."""
+    # Use vendor-specific command
+    command_map = {
+        "cisco_ios_xe": "show ip ospf neighbor",
+        "arista_eos": "show ip ospf neighbor",
+        "juniper_junos": "show ospf neighbor",
+    }
+    command = command_map.get(vendor.value, "show ip ospf neighbor")
+    result = connector.verify(ip, command, name)
+    return {
+        "device": name,
+        "mgmt_ip": ip,
+        "output": result.output if result.success else result.output,
+        "status": "ok" if result.success else "error",
+        "success": result.success,
+    }
+
+
 @router.get("/monitor", response_class=HTMLResponse)
 async def monitor_page(request: Request, user: str = Depends(get_current_user)):
     """Render monitoring page."""
@@ -271,6 +290,65 @@ async def get_bfd_status(
 
     except FileNotFoundError:
         return {"bfd_status": [], "credentials_configured": False}
+
+
+@router.get("/api/monitor/ospf")
+async def get_ospf_status(
+    request: Request,
+    user: str = Depends(get_current_user),
+    live: bool = Query(default=False, description="Fetch live OSPF status"),
+):
+    """Get OSPF neighbor status for all devices."""
+    is_htmx = request.headers.get("HX-Request") == "true"
+
+    try:
+        loader = TopologyLoader()
+        topology, _ = loader.load(DEFAULT_TOPOLOGY)
+
+        ospf_status: list[dict[str, Any]] = []
+        creds_configured = credentials_available()
+
+        if live and creds_configured:
+            creds = get_credentials()
+            loop = asyncio.get_event_loop()
+            tasks = []
+
+            for name, node in topology.nodes.items():
+                device_type = DeviceConnector._get_netmiko_device_type(node.vendor)
+                connector = DeviceConnector(creds, device_type=device_type)
+
+                task = loop.run_in_executor(
+                    executor,
+                    _get_ospf_status,
+                    connector,
+                    str(node.mgmt_ip),
+                    name,
+                    node.vendor,
+                )
+                tasks.append(task)
+
+            ospf_status = await asyncio.gather(*tasks)
+        else:
+            for name, node in topology.nodes.items():
+                ospf_status.append({
+                    "device": name,
+                    "mgmt_ip": str(node.mgmt_ip),
+                    "output": "",
+                    "status": "not_checked",
+                    "success": False,
+                })
+
+        if is_htmx:
+            templates = request.app.state.templates
+            return templates.TemplateResponse(
+                "partials/ospf_status.html",
+                {"request": request, "ospf_status": ospf_status, "live": live},
+            )
+
+        return {"ospf_status": ospf_status, "credentials_configured": creds_configured}
+
+    except FileNotFoundError:
+        return {"ospf_status": [], "credentials_configured": False}
 
 
 @router.get("/api/monitor/refresh")
