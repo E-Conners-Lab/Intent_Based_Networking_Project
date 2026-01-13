@@ -249,3 +249,29 @@ class DeviceConnector:
     def verify_routes(self, host: str, hostname: str = "") -> VerifyResult:
         """Verify routing table."""
         return self.verify(host, "show ip route bgp", hostname)
+
+    def get_running_config(
+        self,
+        host: str,
+        section: str | None = None,
+        hostname: str = "",
+    ) -> VerifyResult:
+        """Get running configuration from device.
+
+        Args:
+            host: IP address
+            section: Optional section filter (e.g., "router bgp")
+            hostname: Friendly name for logging
+
+        Returns:
+            VerifyResult with config output
+        """
+        if section:
+            command = f"show running-config | section {section}"
+        else:
+            command = "show running-config"
+        return self.verify(host, command, hostname)
+
+    def get_bgp_config(self, host: str, hostname: str = "") -> VerifyResult:
+        """Get BGP section of running config."""
+        return self.get_running_config(host, "router bgp", hostname)

@@ -20,6 +20,7 @@ from ibn.errors import IBNError, SolverError, SolverTimeout, UnsatisfiableIntent
 from ibn.intent import IntentParser
 from ibn.model.loader import TopologyLoader
 from ibn.solver import DiversePathSolver, SolverConfig
+from ibn.viz import TopologyDiagram
 
 console = Console()
 
@@ -150,6 +151,33 @@ def info() -> None:
             border_style="blue",
         )
     )
+
+
+@main.command("show-topology")
+@click.option(
+    "--topology",
+    "-t",
+    type=click.Path(exists=True, path_type=Path),
+    default=DEFAULT_TOPOLOGY,
+    help="Topology file",
+    show_default=True,
+)
+def show_topology(topology: Path) -> None:
+    """Display the network topology diagram.
+
+    Shows an ASCII visualization of the network with nodes,
+    links, and failure domains.
+    """
+    try:
+        loader = TopologyLoader()
+        topo, _ = loader.load(topology)
+
+        diagram = TopologyDiagram(topo)
+        diagram.show()
+
+    except IBNError as e:
+        console.print(f"[bold red]Error:[/bold red] {e.message}")
+        raise SystemExit(1)
 
 
 @main.command("validate-intent")
@@ -393,6 +421,11 @@ def solve(intent_file: Path, topology: Path, timeout: int) -> None:
 
         for item in status_items:
             console.print(item)
+
+        # Show topology diagram with paths
+        console.print()
+        diagram = TopologyDiagram(topo)
+        diagram.show_paths(result)
 
         if result.notes:
             console.print()
@@ -839,6 +872,7 @@ def test_connections(topology: Path, username: str, password: str) -> None:
 @click.option("--username", "-u", default=lambda: os.environ.get("IBN_USERNAME"), prompt=True, help="SSH username (or set IBN_USERNAME)")
 @click.option("--password", "-p", default=lambda: os.environ.get("IBN_PASSWORD"), prompt=True, hide_input=True, help="SSH password (or set IBN_PASSWORD)")
 @click.option("--dry-run", is_flag=True, help="Show what would be deployed without deploying")
+@click.option("--diff", "show_diff", is_flag=True, help="Show config diff before deploying")
 @click.option("--no-verify", is_flag=True, help="Skip verification after deployment")
 def deploy(
     intent_file: Path,
@@ -846,6 +880,7 @@ def deploy(
     username: str,
     password: str,
     dry_run: bool,
+    show_diff: bool,
     no_verify: bool,
 ) -> None:
     """Deploy an intent to network devices.
@@ -907,6 +942,42 @@ def deploy(
         # Deploy to devices
         credentials = DeviceCredentials(username=username, password=password)
         connector = DeviceConnector(credentials)
+
+        # Show diff if requested
+        if show_diff:
+            from ibn.deploy import generate_diff, display_diff, display_diff_summary
+
+            console.print("[bold]Fetching current configs and generating diff...[/bold]\n")
+
+            diffs = []
+            for hostname, proposed_config in configs.items():
+                node = topo.nodes.get(hostname)
+                if not node or not node.mgmt_ip:
+                    continue
+
+                # Get current BGP config
+                current_result = connector.get_bgp_config(str(node.mgmt_ip), hostname)
+                current_config = current_result.output if current_result.success else ""
+
+                # Generate diff
+                diff = generate_diff(hostname, current_config, proposed_config)
+                diffs.append(diff)
+
+            # Show summary
+            display_diff_summary(diffs, console)
+            console.print()
+
+            # Show detailed diffs
+            for diff in diffs:
+                if diff.has_changes:
+                    display_diff(diff, console)
+
+            # Ask for confirmation
+            if not click.confirm("\nProceed with deployment?"):
+                console.print("[yellow]Deployment cancelled[/yellow]")
+                return
+
+            console.print()
 
         console.print("[bold]Deploying configurations...[/bold]\n")
 
@@ -1205,6 +1276,44 @@ def verify(
                 console.print(result.output if result.success else f"[red]{result.output}[/red]")
 
             console.print()
+
+    except IBNError as e:
+        console.print(f"[bold red]Error:[/bold red] {e.message}")
+        raise SystemExit(1)
+
+
+@main.command("watch")
+@click.option(
+    "--topology",
+    "-t",
+    type=click.Path(exists=True, path_type=Path),
+    default=DEFAULT_TOPOLOGY,
+    help="Topology file",
+    show_default=True,
+)
+@click.option("--username", "-u", default=lambda: os.environ.get("IBN_USERNAME"), prompt=True, help="SSH username (or set IBN_USERNAME)")
+@click.option("--password", "-p", default=lambda: os.environ.get("IBN_PASSWORD"), prompt=True, hide_input=True, help="SSH password (or set IBN_PASSWORD)")
+@click.option("--interval", "-i", type=int, default=5, help="Polling interval in seconds", show_default=True)
+def watch(topology: Path, username: str, password: str, interval: int) -> None:
+    """Watch network status in real-time.
+
+    Continuously monitors BGP and BFD session status across all devices.
+    Displays live updates and alerts on state changes.
+
+    Press Ctrl+C to stop watching.
+    """
+    from ibn.deploy import DeviceCredentials
+    from ibn.monitor import NetworkWatcher
+
+    try:
+        loader = TopologyLoader()
+        topo, _ = loader.load(topology)
+
+        credentials = DeviceCredentials(username=username, password=password)
+        watcher = NetworkWatcher(topo, credentials)
+
+        # Start watching
+        watcher.watch(interval=interval)
 
     except IBNError as e:
         console.print(f"[bold red]Error:[/bold red] {e.message}")
