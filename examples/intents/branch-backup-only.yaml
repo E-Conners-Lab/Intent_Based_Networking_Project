@@ -1,0 +1,28 @@
+# Branch Backup Path Intent
+# Use case: Explicitly use backup path (Domain B) only
+#
+# This might be used during maintenance windows on Domain A
+# or for testing the backup path.
+
+intent:
+  name: "Branch Backup Path"
+  type: branch-wan
+
+  source: IBN-HQ
+  destination: IBN-Branch
+
+  requirements:
+    latency_ms: 75           # Relaxed latency for backup path
+    availability: 99.0       # Lower availability acceptable
+    bandwidth_mbps: 50       # Reduced bandwidth
+    diverse_paths: false     # Don't require diversity
+    encrypted: false
+
+  constraints:
+    avoid_nodes: []
+    avoid_domains:
+      - A                    # Avoid Domain A entirely
+    prefer_domains:
+      - B                    # Use Domain B
+    prefer_lowest_cost: false
+    max_hops: 3

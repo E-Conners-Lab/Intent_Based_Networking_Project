@@ -1,0 +1,30 @@
+# NYC Branch Connectivity Intent
+# Primary use case: Dual-homed WAN with SLA requirements
+#
+# This intent requests connectivity from HQ to the NYC Branch
+# with specific latency, availability, and diversity requirements.
+
+intent:
+  name: "NYC Branch Connectivity"
+  type: branch-wan
+
+  # Endpoints
+  source: IBN-HQ
+  destination: IBN-Branch
+
+  # SLA Requirements - these MUST be met
+  requirements:
+    latency_ms: 50           # Maximum acceptable latency
+    availability: 99.9       # Target availability percentage
+    bandwidth_mbps: 100      # Minimum guaranteed bandwidth
+    diverse_paths: true      # Require paths through different failure domains
+    encrypted: false         # Encryption not required for this connection
+
+  # Solver Constraints - preferences that guide path selection
+  constraints:
+    avoid_nodes: []          # No nodes to avoid
+    avoid_domains: []        # No domains to avoid
+    prefer_domains:          # Prefer Domain A for primary path
+      - A
+    prefer_lowest_cost: true # Optimize for cost when SLA is met
+    max_hops: 3              # Maximum 3 hops allowed

@@ -1,0 +1,112 @@
+# IBN Platform Lab Topology
+# EVE-NG Lab: 4x Cisco C8000V routers (IOS-XE 17.13.1a)
+#
+# Topology:
+#                    ┌─────────┐
+#                    │  IBN-HQ │
+#                    │  .101   │
+#                    └────┬────┘
+#                G1 /         \ G2
+#                  /           \
+#         ┌───────┴───┐   ┌────┴──────┐
+#         │ IBN-Core1 │   │ IBN-Core2 │
+#         │   .102    │   │   .103    │
+#         └─────┬─────┘   └─────┬─────┘
+#            G2  \             / G2
+#                 \           /
+#                  ┌─────────┐
+#                  │IBN-Branch│
+#                  │   .104   │
+#                  └──────────┘
+#
+# Interface Mapping (C8000V):
+#   G1 = GigabitEthernet1
+#   G2 = GigabitEthernet2
+#   (G3 typically used for management via cloud-init)
+#
+# Failure Domains:
+#   Domain A: Primary path (HQ → Core1 → Branch)
+#   Domain B: Backup path  (HQ → Core2 → Branch)
+
+nodes:
+  - name: IBN-HQ
+    loopback: 10.100.0.1/32
+    mgmt_ip: 10.255.255.101
+    role: headquarters
+
+  - name: IBN-Core1
+    loopback: 10.100.0.2/32
+    mgmt_ip: 10.255.255.102
+    role: core
+
+  - name: IBN-Core2
+    loopback: 10.100.0.3/32
+    mgmt_ip: 10.255.255.103
+    role: core
+
+  - name: IBN-Branch
+    loopback: 10.100.0.4/32
+    mgmt_ip: 10.255.255.104
+    role: branch
+
+edges:
+  # HQ to Core1 (Domain A - Primary path)
+  # HQ G1 (.1) <-> Core1 G1 (.2)
+  - src: IBN-HQ
+    dst: IBN-Core1
+    subnet: 10.100.12.0/30
+    src_interface: GigabitEthernet1
+    dst_interface: GigabitEthernet1
+    latency: 10
+    cost: 100
+    domain: A
+    bandwidth_mbps: 1000
+
+  # HQ to Core2 (Domain B - Backup path)
+  # HQ G2 (.1) <-> Core2 G1 (.2)
+  - src: IBN-HQ
+    dst: IBN-Core2
+    subnet: 10.100.13.0/30
+    src_interface: GigabitEthernet2
+    dst_interface: GigabitEthernet1
+    latency: 15
+    cost: 120
+    domain: B
+    bandwidth_mbps: 1000
+
+  # Core1 to Branch (Domain A)
+  # Core1 G2 (.1) <-> Branch G1 (.2)
+  - src: IBN-Core1
+    dst: IBN-Branch
+    subnet: 10.100.24.0/30
+    src_interface: GigabitEthernet2
+    dst_interface: GigabitEthernet1
+    latency: 12
+    cost: 100
+    domain: A
+    bandwidth_mbps: 1000
+
+  # Core2 to Branch (Domain B)
+  # Core2 G2 (.1) <-> Branch G2 (.2)
+  - src: IBN-Core2
+    dst: IBN-Branch
+    subnet: 10.100.34.0/30
+    src_interface: GigabitEthernet2
+    dst_interface: GigabitEthernet2
+    latency: 18
+    cost: 110
+    domain: B
+    bandwidth_mbps: 1000
+
+# Failure domain definitions
+# Domain A: If any member fails, the entire primary path is affected
+# Domain B: If any member fails, the entire backup path is affected
+failure_domains:
+  A:
+    - IBN-Core1
+    - IBN-HQ-IBN-Core1
+    - IBN-Core1-IBN-Branch
+  B:
+    - IBN-Core2
+    - IBN-HQ-IBN-Core2
+    - IBN-Core2-IBN-Branch

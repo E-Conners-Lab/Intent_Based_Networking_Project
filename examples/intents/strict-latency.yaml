@@ -1,0 +1,27 @@
+# Strict Latency Intent
+# Use case: Low-latency application (voice, real-time)
+#
+# This intent has very strict latency requirements that
+# may limit path options.
+
+intent:
+  name: "Voice Traffic Path"
+  type: branch-wan
+
+  source: IBN-HQ
+  destination: IBN-Branch
+
+  requirements:
+    latency_ms: 25           # Very strict - 25ms max
+    availability: 99.99      # Four nines
+    bandwidth_mbps: 10       # Voice doesn't need much bandwidth
+    diverse_paths: true      # Still want redundancy
+    encrypted: true          # Voice traffic should be encrypted
+
+  constraints:
+    avoid_nodes: []
+    avoid_domains: []
+    prefer_domains:
+      - A                    # Domain A has lower latency (10+12=22ms)
+    prefer_lowest_cost: false # Latency matters more than cost
+    max_hops: 2              # Minimize hops for latency

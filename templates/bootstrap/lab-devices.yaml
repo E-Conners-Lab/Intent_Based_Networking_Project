@@ -1,0 +1,96 @@
+# Bootstrap configuration data for IBN Lab devices
+# Use this with: ibn generate-bootstrap --device IBN-HQ
+#
+# Management Network: 10.255.255.0/24 (shared with NetworkOps lab on pnet1)
+# Management Interface: GigabitEthernet3 (C8000V)
+# Gateway: 10.255.255.1
+
+devices:
+  IBN-HQ:
+    hostname: IBN-HQ
+    mgmt_ip: 10.255.255.101
+    mgmt_mask: 255.255.255.0
+    mgmt_interface: GigabitEthernet3
+    loopback_ip: 10.100.0.1
+    default_gateway: 10.255.255.1
+    username: admin
+    password: CHANGEME
+    enable_secret: CHANGEME
+    role: headquarters
+
+    # P2P interface IPs (configured by IBN Platform, not bootstrap)
+    interfaces:
+      GigabitEthernet1:
+        description: "To IBN-Core1"
+        ip: 10.100.12.1
+        mask: 255.255.255.252
+      GigabitEthernet2:
+        description: "To IBN-Core2"
+        ip: 10.100.13.1
+        mask: 255.255.255.252
+
+  IBN-Core1:
+    hostname: IBN-Core1
+    mgmt_ip: 10.255.255.102
+    mgmt_mask: 255.255.255.0
+    mgmt_interface: GigabitEthernet3
+    loopback_ip: 10.100.0.2
+    default_gateway: 10.255.255.1
+    username: admin
+    password: CHANGEME
+    enable_secret: CHANGEME
+    role: core
+
+    interfaces:
+      GigabitEthernet1:
+        description: "To IBN-HQ"
+        ip: 10.100.12.2
+        mask: 255.255.255.252
+      GigabitEthernet2:
+        description: "To IBN-Branch"
+        ip: 10.100.24.1
+        mask: 255.255.255.252
+
+  IBN-Core2:
+    hostname: IBN-Core2
+    mgmt_ip: 10.255.255.103
+    mgmt_mask: 255.255.255.0
+    mgmt_interface: GigabitEthernet3
+    loopback_ip: 10.100.0.3
+    default_gateway: 10.255.255.1
+    username: admin
+    password: CHANGEME
+    enable_secret: CHANGEME
+    role: core
+
+    interfaces:
+      GigabitEthernet1:
+        description: "To IBN-HQ"
+        ip: 10.100.13.2
+        mask: 255.255.255.252
+      GigabitEthernet2:
+        description: "To IBN-Branch"
+        ip: 10.100.34.1
+        mask: 255.255.255.252
+
+  IBN-Branch:
+    hostname: IBN-Branch
+    mgmt_ip: 10.255.255.104
+    mgmt_mask: 255.255.255.0
+    mgmt_interface: GigabitEthernet3
+    loopback_ip: 10.100.0.4
+    default_gateway: 10.255.255.1
+    username: admin
+    password: CHANGEME
+    enable_secret: CHANGEME
+    role: branch
+
+    interfaces:
+      GigabitEthernet1:
+        description: "To IBN-Core1"
+        ip: 10.100.24.2
+        mask: 255.255.255.252
+      GigabitEthernet2:
+        description: "To IBN-Core2"
+        ip: 10.100.34.2
+        mask: 255.255.255.252

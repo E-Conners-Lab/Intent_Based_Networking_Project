@@ -1,0 +1,23 @@
+# Invalid Intent - For Testing Validation
+# This intent references nodes that don't exist in the topology
+# to demonstrate validation error handling.
+
+intent:
+  name: "Invalid Test Intent"
+  type: branch-wan
+
+  source: NONEXISTENT-HQ        # This node doesn't exist
+  destination: IBN-Branch
+
+  requirements:
+    latency_ms: 50
+    availability: 99.9
+    bandwidth_mbps: 100
+    diverse_paths: true
+
+  constraints:
+    avoid_nodes:
+      - legacy-router           # This node doesn't exist either
+    avoid_domains: []
+    prefer_domains: []
+    prefer_lowest_cost: true
