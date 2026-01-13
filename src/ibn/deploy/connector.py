@@ -90,11 +90,11 @@ class DeviceConnector:
             Netmiko device_type string
         """
         device_type_map = {
-            Vendor.CISCO_IOS_XE: "cisco_xe",
+            Vendor.CISCO_IOS_XE: "cisco_ios",  # cisco_ios works better than cisco_xe for auth
             Vendor.ARISTA_EOS: "arista_eos",
             Vendor.JUNIPER_JUNOS: "juniper_junos",
         }
-        return device_type_map.get(vendor, "cisco_xe")
+        return device_type_map.get(vendor, "cisco_ios")
 
     @staticmethod
     def _get_bgp_summary_command(vendor: Vendor) -> str:
@@ -139,6 +139,8 @@ class DeviceConnector:
             "password": self.credentials.password,
             "timeout": self.timeout,
             "conn_timeout": self.timeout,
+            "allow_agent": False,
+            "use_keys": False,
         }
         if self.credentials.enable_secret:
             params["secret"] = self.credentials.enable_secret

@@ -6,6 +6,7 @@ Production-ready with security features:
 - Rate limiting
 - Security headers
 - Input validation
+- SQLite persistence for intents
 """
 
 from pathlib import Path
@@ -22,6 +23,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 from starlette.middleware.sessions import SessionMiddleware
 
+from ibn.web.persistence import IntentRepository
 from ibn.web.routes import history, intents, monitor, topology
 
 # Rate limiter
@@ -42,11 +44,15 @@ USERS = {
 }
 
 
-def create_app(rate_limit_enabled: bool = True) -> FastAPI:
+def create_app(
+    rate_limit_enabled: bool = True,
+    db_path: str | Path | None = None,
+) -> FastAPI:
     """Create and configure the FastAPI application.
 
     Args:
         rate_limit_enabled: Whether to enable rate limiting (disable for tests)
+        db_path: Path to SQLite database file (default: ibn_intents.db)
 
     Returns:
         Configured FastAPI app with security middleware
@@ -58,6 +64,11 @@ def create_app(rate_limit_enabled: bool = True) -> FastAPI:
         docs_url="/docs",
         redoc_url="/redoc",
     )
+
+    # Initialize intent repository
+    repository = IntentRepository(db_path or "ibn_intents.db")
+    repository.initialize()
+    app.state.intent_repository = repository
 
     # Security middleware
     app.add_middleware(

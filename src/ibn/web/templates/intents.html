@@ -5,7 +5,7 @@
 {% block content %}
 <div class="mb-8">
     <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Intent Management</h1>
-    <p class="text-gray-600 dark:text-gray-400">Create and manage network intents</p>
+    <p class="text-gray-600 dark:text-gray-400">Create, solve, and deploy network intents</p>
 </div>
 
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -27,14 +27,25 @@
                 </select>
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Source</label>
-                <input type="text" name="source" value="IBN-HQ" required
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Protocol</label>
+                <select name="protocol" required
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                    <option value="bgp">BGP (iBGP)</option>
+                    <option value="ospf">OSPF</option>
+                    <option value="sr-mpls">SR-MPLS (Segment Routing)</option>
+                </select>
             </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Destination</label>
-                <input type="text" name="destination" value="IBN-Branch" required
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Source</label>
+                    <input type="text" name="source" value="IBN-HQ" required
+                        class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Destination</label>
+                    <input type="text" name="destination" value="IBN-Branch" required
+                        class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                </div>
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Max Latency (ms)</label>
@@ -46,40 +57,162 @@
                     class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700">
                 <label for="diverse_paths" class="ml-2 block text-sm text-gray-700 dark:text-gray-300">Require diverse paths</label>
             </div>
-            <button type="submit"
+            <button type="submit" id="create-btn"
                 class="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
-                Solve Intent
+                Create Intent
             </button>
         </form>
     </div>
 
-    <!-- Results -->
+    <!-- Solution / Details Panel -->
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-        <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Solution</h2>
-        <div id="solution-result">
-            <p class="text-gray-500 dark:text-gray-400">Submit an intent to see the computed paths.</p>
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Intent Details</h2>
+        <div id="intent-details">
+            <p class="text-gray-500 dark:text-gray-400">Select an intent or create a new one to see details.</p>
         </div>
     </div>
 </div>
 
 <!-- Intent List -->
 <div class="mt-6 bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Saved Intents</h2>
-    <div id="intents-list" hx-get="/api/intents" hx-trigger="load" hx-swap="innerHTML">
+    <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Saved Intents</h2>
+        <button onclick="refreshIntents()" class="text-sm text-indigo-600 dark:text-indigo-400 hover:underline">Refresh</button>
+    </div>
+    <div id="intents-list">
         <div class="animate-pulse text-gray-500 dark:text-gray-400">Loading...</div>
+    </div>
+</div>
+
+<!-- Config Preview Modal -->
+<div id="config-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 dark:bg-gray-900 dark:bg-opacity-75 overflow-y-auto h-full w-full z-50">
+    <div class="relative top-10 mx-auto p-5 border border-gray-200 dark:border-gray-700 w-11/12 max-w-4xl shadow-lg rounded-md bg-white dark:bg-gray-800">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Generated Configurations</h3>
+            <button onclick="closeConfigModal()" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-2xl">&times;</button>
+        </div>
+        <div id="config-content" class="max-h-[70vh] overflow-y-auto">
+            <div class="animate-pulse text-gray-500 dark:text-gray-400">Loading configs...</div>
+        </div>
+        <div class="mt-4 flex justify-end gap-4">
+            <button onclick="closeConfigModal()" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded hover:bg-gray-300 dark:hover:bg-gray-600">Close</button>
+            <button id="deploy-from-modal-btn" onclick="deployFromModal()" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Deploy</button>
+        </div>
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
+let currentIntentId = null;
+
+// Status badge colors
+const statusColors = {
+    pending: 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300',
+    solving: 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-300',
+    solved: 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300',
+    deploying: 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-300',
+    deployed: 'bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-300',
+    verifying: 'bg-cyan-100 dark:bg-cyan-900 text-cyan-800 dark:text-cyan-300',
+    active: 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300',
+    failed: 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300',
+};
+
+function getStatusBadge(status) {
+    const color = statusColors[status] || statusColors.pending;
+    return `<span class="px-2 py-1 ${color} rounded-full text-xs font-medium">${status}</span>`;
+}
+
+function getActionButtons(intent) {
+    let buttons = [];
+    const id = intent.id;
+
+    if (intent.status === 'pending') {
+        buttons.push(`<button onclick="solveIntent('${id}')" class="text-indigo-600 dark:text-indigo-400 hover:underline text-sm">Solve</button>`);
+    }
+    if (intent.status === 'failed') {
+        buttons.push(`<button onclick="solveIntent('${id}')" class="text-indigo-600 dark:text-indigo-400 hover:underline text-sm">Re-solve</button>`);
+        if (intent.solution) {
+            buttons.push(`<button onclick="deployIntent('${id}')" class="text-orange-600 dark:text-orange-400 hover:underline text-sm">Retry Deploy</button>`);
+        }
+    }
+    if (intent.status === 'solved') {
+        buttons.push(`<button onclick="viewConfigs('${id}')" class="text-blue-600 dark:text-blue-400 hover:underline text-sm">Configs</button>`);
+        buttons.push(`<button onclick="deployIntent('${id}')" class="text-green-600 dark:text-green-400 hover:underline text-sm">Deploy</button>`);
+    }
+    if (intent.status === 'deployed') {
+        buttons.push(`<button onclick="verifyIntent('${id}')" class="text-cyan-600 dark:text-cyan-400 hover:underline text-sm">Verify</button>`);
+    }
+    if (intent.status === 'active') {
+        buttons.push(`<button onclick="recheckIntent('${id}')" class="text-green-600 dark:text-green-400 hover:underline text-sm">Re-check</button>`);
+    }
+
+    buttons.push(`<button onclick="viewDetails('${id}')" class="text-gray-600 dark:text-gray-400 hover:underline text-sm">Details</button>`);
+    buttons.push(`<button onclick="deleteIntent('${id}')" class="text-red-600 dark:text-red-400 hover:underline text-sm">Delete</button>`);
+
+    return buttons.join(' | ');
+}
+
+async function refreshIntents() {
+    const container = document.getElementById('intents-list');
+    try {
+        const response = await fetch('/api/intents');
+        const data = await response.json();
+        renderIntentsList(data);
+    } catch (err) {
+        container.innerHTML = `<p class="text-red-500">Error loading intents: ${err.message}</p>`;
+    }
+}
+
+function renderIntentsList(data) {
+    const container = document.getElementById('intents-list');
+
+    if (!Array.isArray(data) || data.length === 0) {
+        container.innerHTML = '<p class="text-gray-500 dark:text-gray-400">No saved intents. Create one above.</p>';
+        return;
+    }
+
+    let html = `<div class="overflow-x-auto">
+        <table class="min-w-full">
+            <thead>
+                <tr class="border-b border-gray-200 dark:border-gray-700">
+                    <th class="text-left py-2 text-gray-900 dark:text-white">Name</th>
+                    <th class="text-left text-gray-900 dark:text-white">Type</th>
+                    <th class="text-left text-gray-900 dark:text-white">Protocol</th>
+                    <th class="text-left text-gray-900 dark:text-white">Source → Dest</th>
+                    <th class="text-left text-gray-900 dark:text-white">Status</th>
+                    <th class="text-left text-gray-900 dark:text-white">Actions</th>
+                </tr>
+            </thead>
+            <tbody>`;
+
+    data.forEach(intent => {
+        const protocol = intent.protocol || 'bgp';
+        const protocolLabel = protocol === 'sr-mpls' ? 'SR-MPLS' : protocol.toUpperCase();
+        html += `<tr class="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
+            <td class="py-3 font-medium text-gray-900 dark:text-white">${intent.name}</td>
+            <td class="text-gray-600 dark:text-gray-400">${intent.type}</td>
+            <td class="text-gray-600 dark:text-gray-400">${protocolLabel}</td>
+            <td class="text-gray-600 dark:text-gray-400">${intent.source} → ${intent.destination}</td>
+            <td>${getStatusBadge(intent.status)}</td>
+            <td class="space-x-2">${getActionButtons(intent)}</td>
+        </tr>`;
+    });
+
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+}
+
+// Create intent
 document.getElementById('intent-form').addEventListener('submit', async function(e) {
     e.preventDefault();
     const formData = new FormData(this);
+    const btn = document.getElementById('create-btn');
 
     const intent = {
         name: formData.get('name'),
         type: formData.get('type'),
+        protocol: formData.get('protocol'),
         source: formData.get('source'),
         destination: formData.get('destination'),
         requirements: {
@@ -88,59 +221,328 @@ document.getElementById('intent-form').addEventListener('submit', async function
         }
     };
 
-    const resultDiv = document.getElementById('solution-result');
-    resultDiv.innerHTML = '<div class="animate-pulse text-gray-500 dark:text-gray-400">Solving...</div>';
+    btn.disabled = true;
+    btn.textContent = 'Creating...';
 
     try {
-        const response = await fetch('/api/intents/solve', {
+        const response = await fetch('/api/intents', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(intent)
         });
         const data = await response.json();
 
-        if (data.success) {
-            let html = '<div class="space-y-4">';
-            html += '<div class="p-4 bg-green-50 dark:bg-green-900/30 rounded-lg">';
-            html += '<h3 class="font-semibold text-green-800 dark:text-green-300">Primary Path</h3>';
-            html += `<p class="text-green-700 dark:text-green-400">${data.primary_path.path.join(' → ')}</p>`;
-            html += `<p class="text-sm text-green-600 dark:text-green-500">Latency: ${data.primary_path.latency_ms}ms | Domain: ${data.primary_path.domain || 'N/A'}</p>`;
-            html += '</div>';
-
-            if (data.backup_path) {
-                html += '<div class="p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg">';
-                html += '<h3 class="font-semibold text-blue-800 dark:text-blue-300">Backup Path</h3>';
-                html += `<p class="text-blue-700 dark:text-blue-400">${data.backup_path.path.join(' → ')}</p>`;
-                html += `<p class="text-sm text-blue-600 dark:text-blue-500">Latency: ${data.backup_path.latency_ms}ms | Domain: ${data.backup_path.domain || 'N/A'}</p>`;
-                html += '</div>';
-            }
-
-            html += `<p class="text-sm text-gray-500 dark:text-gray-400">Solved in ${data.solver_time_ms}ms</p>`;
-            html += '</div>';
-            resultDiv.innerHTML = html;
+        if (response.ok) {
+            this.reset();
+            refreshIntents();
+            showDetails(data);
         } else {
-            resultDiv.innerHTML = `<div class="p-4 bg-red-50 dark:bg-red-900/30 rounded-lg text-red-700 dark:text-red-300">${data.error || 'No solution found'}</div>`;
+            alert('Error: ' + (data.detail || 'Failed to create intent'));
         }
     } catch (err) {
-        resultDiv.innerHTML = `<div class="p-4 bg-red-50 dark:bg-red-900/30 rounded-lg text-red-700 dark:text-red-300">Error: ${err.message}</div>`;
+        alert('Error: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Create Intent';
     }
 });
 
-// Render intents list
-htmx.on('htmx:afterSwap', function(evt) {
-    if (evt.detail.target.id === 'intents-list') {
-        const data = JSON.parse(evt.detail.xhr.responseText);
-        if (Array.isArray(data) && data.length === 0) {
-            evt.detail.target.innerHTML = '<p class="text-gray-500 dark:text-gray-400">No saved intents yet.</p>';
-        } else if (Array.isArray(data)) {
-            let html = '<table class="min-w-full"><thead><tr class="border-b border-gray-200 dark:border-gray-700"><th class="text-left py-2 text-gray-900 dark:text-white">Name</th><th class="text-left text-gray-900 dark:text-white">Type</th><th class="text-left text-gray-900 dark:text-white">Source</th><th class="text-left text-gray-900 dark:text-white">Destination</th></tr></thead><tbody>';
-            data.forEach(i => {
-                html += `<tr class="border-b border-gray-200 dark:border-gray-700"><td class="py-2 text-gray-700 dark:text-gray-300">${i.name}</td><td class="text-gray-700 dark:text-gray-300">${i.type}</td><td class="text-gray-700 dark:text-gray-300">${i.source}</td><td class="text-gray-700 dark:text-gray-300">${i.destination}</td></tr>`;
-            });
-            html += '</tbody></table>';
-            evt.detail.target.innerHTML = html;
+async function solveIntent(id) {
+    currentIntentId = id;
+    const detailsDiv = document.getElementById('intent-details');
+    detailsDiv.innerHTML = '<div class="animate-pulse text-gray-500 dark:text-gray-400">Solving with Z3...</div>';
+
+    try {
+        const response = await fetch(`/api/intents/${id}/solve`, {method: 'POST'});
+        const data = await response.json();
+
+        if (data.success) {
+            renderSolution(data);
+            refreshIntents();
+        } else {
+            detailsDiv.innerHTML = `<div class="p-4 bg-red-50 dark:bg-red-900/30 rounded-lg text-red-700 dark:text-red-300">Solve failed: ${data.error}</div>`;
+            refreshIntents();
         }
+    } catch (err) {
+        detailsDiv.innerHTML = `<div class="p-4 bg-red-50 dark:bg-red-900/30 rounded-lg text-red-700 dark:text-red-300">Error: ${err.message}</div>`;
     }
-});
+}
+
+function renderSolution(data) {
+    const detailsDiv = document.getElementById('intent-details');
+    let html = '<div class="space-y-4">';
+
+    html += '<div class="p-4 bg-green-50 dark:bg-green-900/30 rounded-lg">';
+    html += '<h3 class="font-semibold text-green-800 dark:text-green-300">Primary Path</h3>';
+    html += `<p class="text-green-700 dark:text-green-400 font-mono">${data.primary_path.path.join(' → ')}</p>`;
+    html += `<p class="text-sm text-green-600 dark:text-green-500">Latency: ${data.primary_path.latency_ms}ms | Cost: ${data.primary_path.cost || 'N/A'}</p>`;
+    html += '</div>';
+
+    if (data.backup_path) {
+        html += '<div class="p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg">';
+        html += '<h3 class="font-semibold text-blue-800 dark:text-blue-300">Backup Path</h3>';
+        html += `<p class="text-blue-700 dark:text-blue-400 font-mono">${data.backup_path.path.join(' → ')}</p>`;
+        html += `<p class="text-sm text-blue-600 dark:text-blue-500">Latency: ${data.backup_path.latency_ms}ms | Cost: ${data.backup_path.cost || 'N/A'}</p>`;
+        html += '</div>';
+    }
+
+    html += `<p class="text-sm text-gray-500 dark:text-gray-400">Solved in ${data.solver_time_ms}ms</p>`;
+
+    if (currentIntentId) {
+        html += `<div class="flex gap-2 mt-4">
+            <button onclick="viewConfigs('${currentIntentId}')" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">View Configs</button>
+            <button onclick="deployIntent('${currentIntentId}')" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Deploy</button>
+        </div>`;
+    }
+
+    html += '</div>';
+    detailsDiv.innerHTML = html;
+}
+
+async function viewDetails(id) {
+    currentIntentId = id;
+    const detailsDiv = document.getElementById('intent-details');
+    detailsDiv.innerHTML = '<div class="animate-pulse text-gray-500 dark:text-gray-400">Loading...</div>';
+
+    try {
+        const response = await fetch(`/api/intents/${id}`);
+        const data = await response.json();
+        showDetails(data);
+    } catch (err) {
+        detailsDiv.innerHTML = `<p class="text-red-500">Error: ${err.message}</p>`;
+    }
+}
+
+function showDetails(intent) {
+    const detailsDiv = document.getElementById('intent-details');
+    let html = `<div class="space-y-4">
+        <div class="flex justify-between items-center">
+            <h3 class="font-semibold text-gray-900 dark:text-white">${intent.name}</h3>
+            ${getStatusBadge(intent.status)}
+        </div>
+        <div class="grid grid-cols-2 gap-4 text-sm">
+            <div><span class="text-gray-500 dark:text-gray-400">Type:</span> <span class="text-gray-900 dark:text-white">${intent.type}</span></div>
+            <div><span class="text-gray-500 dark:text-gray-400">Created:</span> <span class="text-gray-900 dark:text-white">${intent.created_at?.slice(0, 19) || 'N/A'}</span></div>
+            <div><span class="text-gray-500 dark:text-gray-400">Source:</span> <span class="text-gray-900 dark:text-white">${intent.source}</span></div>
+            <div><span class="text-gray-500 dark:text-gray-400">Destination:</span> <span class="text-gray-900 dark:text-white">${intent.destination}</span></div>
+        </div>`;
+
+    if (intent.solution) {
+        html += '<div class="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">';
+        html += '<h4 class="font-medium text-gray-900 dark:text-white mb-2">Solution</h4>';
+        html += `<p class="text-sm text-gray-600 dark:text-gray-400 font-mono">Primary: ${intent.solution.primary_path?.path?.join(' → ') || 'N/A'}</p>`;
+        if (intent.solution.backup_path) {
+            html += `<p class="text-sm text-gray-600 dark:text-gray-400 font-mono">Backup: ${intent.solution.backup_path.path.join(' → ')}</p>`;
+        }
+        html += '</div>';
+    }
+
+    // Action buttons based on status
+    html += '<div class="flex gap-2 mt-4">';
+    if (intent.status === 'pending' || intent.status === 'failed') {
+        html += `<button onclick="solveIntent('${intent.id}')" class="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">Solve</button>`;
+    }
+    if (intent.status === 'solved') {
+        html += `<button onclick="viewConfigs('${intent.id}')" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">View Configs</button>`;
+        html += `<button onclick="deployIntent('${intent.id}')" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Deploy</button>`;
+    }
+    if (intent.status === 'deployed') {
+        html += `<button onclick="verifyIntent('${intent.id}')" class="px-4 py-2 bg-cyan-600 text-white rounded hover:bg-cyan-700">Verify</button>`;
+    }
+    html += '</div></div>';
+
+    detailsDiv.innerHTML = html;
+}
+
+async function viewConfigs(id) {
+    currentIntentId = id;
+    document.getElementById('config-modal').classList.remove('hidden');
+    const content = document.getElementById('config-content');
+    content.innerHTML = '<div class="animate-pulse text-gray-500 dark:text-gray-400">Generating configs...</div>';
+
+    try {
+        const response = await fetch(`/api/intents/${id}/configs`);
+        const data = await response.json();
+
+        if (response.ok) {
+            let html = '<div class="space-y-4">';
+            for (const [device, config] of Object.entries(data.configs)) {
+                html += `<div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                    <div class="bg-gray-100 dark:bg-gray-900 px-4 py-2 font-medium text-gray-900 dark:text-white">${device}</div>
+                    <pre class="p-4 bg-gray-900 text-green-400 text-sm overflow-x-auto">${escapeHtml(config)}</pre>
+                </div>`;
+            }
+            html += '</div>';
+            content.innerHTML = html;
+        } else {
+            content.innerHTML = `<p class="text-red-500">${data.detail || 'Failed to load configs'}</p>`;
+        }
+    } catch (err) {
+        content.innerHTML = `<p class="text-red-500">Error: ${err.message}</p>`;
+    }
+}
+
+function closeConfigModal() {
+    document.getElementById('config-modal').classList.add('hidden');
+}
+
+async function deployIntent(id) {
+    currentIntentId = id;
+    if (!confirm('Deploy this intent to all devices in the path?')) return;
+
+    const detailsDiv = document.getElementById('intent-details');
+    detailsDiv.innerHTML = '<div class="animate-pulse text-gray-500 dark:text-gray-400">Deploying to devices...</div>';
+
+    try {
+        const response = await fetch(`/api/intents/${id}/deploy`, {method: 'POST'});
+        const data = await response.json();
+
+        if (data.success) {
+            let html = '<div class="p-4 bg-green-50 dark:bg-green-900/30 rounded-lg">';
+            html += '<h3 class="font-semibold text-green-800 dark:text-green-300">Deployment Successful</h3>';
+            html += '<ul class="mt-2 text-sm text-green-700 dark:text-green-400">';
+            for (const [device, result] of Object.entries(data.results)) {
+                html += `<li>${device}: ${result.message || 'OK'}</li>`;
+            }
+            html += '</ul>';
+            html += `<button onclick="verifyIntent('${id}')" class="mt-4 px-4 py-2 bg-cyan-600 text-white rounded hover:bg-cyan-700">Verify Deployment</button>`;
+            html += '</div>';
+            detailsDiv.innerHTML = html;
+        } else {
+            let html = '<div class="p-4 bg-red-50 dark:bg-red-900/30 rounded-lg">';
+            html += '<h3 class="font-semibold text-red-800 dark:text-red-300">Deployment Failed</h3>';
+            html += '<ul class="mt-2 text-sm text-red-700 dark:text-red-400">';
+            for (const [device, result] of Object.entries(data.results || {})) {
+                html += `<li>${device}: ${result.message || 'Failed'}</li>`;
+            }
+            html += '</ul></div>';
+            detailsDiv.innerHTML = html;
+        }
+        refreshIntents();
+    } catch (err) {
+        detailsDiv.innerHTML = `<div class="p-4 bg-red-50 dark:bg-red-900/30 rounded-lg text-red-700 dark:text-red-300">Error: ${err.message}</div>`;
+    }
+}
+
+function deployFromModal() {
+    closeConfigModal();
+    if (currentIntentId) {
+        deployIntent(currentIntentId);
+    }
+}
+
+async function verifyIntent(id) {
+    currentIntentId = id;
+    const detailsDiv = document.getElementById('intent-details');
+
+    // Get intent to determine protocol
+    const intentResp = await fetch(`/api/intents/${id}`);
+    const intent = await intentResp.json();
+    const protocol = intent.protocol || 'bgp';
+    const protocolLabel = protocol === 'bgp' ? 'BGP' : 'OSPF';
+
+    detailsDiv.innerHTML = `<div class="animate-pulse text-gray-500 dark:text-gray-400">Verifying ${protocolLabel} neighbors...</div>`;
+
+    try {
+        const response = await fetch(`/api/intents/${id}/verify`, {method: 'POST'});
+        const data = await response.json();
+
+        const bgColor = data.verified ? 'bg-green-50 dark:bg-green-900/30' : 'bg-yellow-50 dark:bg-yellow-900/30';
+        const textColor = data.verified ? 'text-green-800 dark:text-green-300' : 'text-yellow-800 dark:text-yellow-300';
+        const title = data.verified ? 'Verification Passed' : 'Verification Issues';
+        const subtitle = data.verified
+            ? `All ${protocolLabel} neighbors are established. Intent is now active.`
+            : `Some ${protocolLabel} neighbors have issues.`;
+
+        let html = `<div class="p-4 ${bgColor} rounded-lg">`;
+        html += `<h3 class="font-semibold ${textColor}">${title}</h3>`;
+        html += `<p class="${textColor.replace('800', '700').replace('300', '400')} mt-2 mb-4">${subtitle}</p>`;
+
+        // Show each device's verification result
+        html += `<div class="space-y-3">`;
+        for (const [device, result] of Object.entries(data.results || {})) {
+            const success = result.routing?.success;
+            const statusIcon = success ? '✓' : '✗';
+            const statusClass = success ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
+            const output = result.routing?.output || result.error || 'No output';
+
+            html += `<details class="bg-white dark:bg-gray-800 rounded p-3 border border-gray-200 dark:border-gray-700">`;
+            html += `<summary class="cursor-pointer font-medium text-gray-900 dark:text-white">`;
+            html += `<span class="${statusClass}">${statusIcon}</span> ${device}`;
+            html += `</summary>`;
+            html += `<pre class="mt-2 text-xs text-gray-600 dark:text-gray-400 overflow-x-auto whitespace-pre-wrap">${output}</pre>`;
+            html += `</details>`;
+        }
+        html += `</div></div>`;
+
+        detailsDiv.innerHTML = html;
+        refreshIntents();
+    } catch (err) {
+        detailsDiv.innerHTML = `<div class="p-4 bg-red-50 dark:bg-red-900/30 rounded-lg text-red-700 dark:text-red-300">Error: ${err.message}</div>`;
+    }
+}
+
+async function recheckIntent(id) {
+    currentIntentId = id;
+    const detailsDiv = document.getElementById('intent-details');
+
+    // Get intent to determine protocol
+    const intentResp = await fetch(`/api/intents/${id}`);
+    const intent = await intentResp.json();
+    const protocol = intent.protocol || 'bgp';
+    const protocolLabel = protocol === 'bgp' ? 'BGP' : 'OSPF';
+
+    detailsDiv.innerHTML = `<div class="animate-pulse text-gray-500 dark:text-gray-400">Re-checking ${protocolLabel} neighbors...</div>`;
+
+    try {
+        const response = await fetch(`/api/intents/${id}/recheck`, {method: 'POST'});
+        const data = await response.json();
+
+        let html = `<div class="p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg">`;
+        html += `<h3 class="font-semibold text-blue-800 dark:text-blue-300">${protocolLabel} Neighbor Status</h3>`;
+        html += `<p class="text-blue-700 dark:text-blue-400 mt-2 mb-4">Current routing protocol status:</p>`;
+
+        html += `<div class="space-y-3">`;
+        for (const [device, result] of Object.entries(data.results || {})) {
+            const success = result.routing?.success;
+            const statusIcon = success ? '✓' : '✗';
+            const statusClass = success ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
+            const output = result.routing?.output || result.error || 'No output';
+
+            html += `<details class="bg-white dark:bg-gray-800 rounded p-3 border border-gray-200 dark:border-gray-700" open>`;
+            html += `<summary class="cursor-pointer font-medium text-gray-900 dark:text-white">`;
+            html += `<span class="${statusClass}">${statusIcon}</span> ${device}`;
+            html += `</summary>`;
+            html += `<pre class="mt-2 text-xs text-gray-600 dark:text-gray-400 overflow-x-auto whitespace-pre-wrap">${output}</pre>`;
+            html += `</details>`;
+        }
+        html += `</div></div>`;
+
+        detailsDiv.innerHTML = html;
+    } catch (err) {
+        detailsDiv.innerHTML = `<div class="p-4 bg-red-50 dark:bg-red-900/30 rounded-lg text-red-700 dark:text-red-300">Error: ${err.message}</div>`;
+    }
+}
+
+async function deleteIntent(id) {
+    if (!confirm('Delete this intent?')) return;
+
+    try {
+        await fetch(`/api/intents/${id}`, {method: 'DELETE'});
+        refreshIntents();
+        document.getElementById('intent-details').innerHTML = '<p class="text-gray-500 dark:text-gray-400">Intent deleted.</p>';
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Load intents on page load
+document.addEventListener('DOMContentLoaded', refreshIntents);
 </script>
 {% endblock %}
