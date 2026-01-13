@@ -1357,6 +1357,124 @@ def watch(topology: Path, username: str, password: str, interval: int) -> None:
         raise SystemExit(1)
 
 
+@main.command("compliance")
+@click.argument("intent_file", type=click.Path(exists=True, path_type=Path))
+@click.option(
+    "--topology",
+    "-t",
+    type=click.Path(exists=True, path_type=Path),
+    default=DEFAULT_TOPOLOGY,
+    help="Topology file",
+    show_default=True,
+)
+@click.option("--username", "-u", default=lambda: os.environ.get("IBN_USERNAME"), prompt=True, help="SSH username (or set IBN_USERNAME)")
+@click.option("--password", "-p", default=lambda: os.environ.get("IBN_PASSWORD"), prompt=True, hide_input=True, help="SSH password (or set IBN_PASSWORD)")
+@click.option("--continuous", "-c", is_flag=True, help="Run continuous compliance monitoring")
+@click.option("--interval", "-i", type=int, default=30, help="Check interval in seconds (for continuous mode)", show_default=True)
+def compliance(
+    intent_file: Path,
+    topology: Path,
+    username: str,
+    password: str,
+    continuous: bool,
+    interval: int,
+) -> None:
+    """Check network compliance against an intent.
+
+    Verifies that the network state matches the intended configuration.
+    Reports any violations including BGP/BFD session failures and config drift.
+
+    Use --continuous for ongoing compliance monitoring.
+
+    INTENT_FILE: Path to the intent YAML file
+    """
+    import time
+
+    from ibn.compliance import ComplianceChecker, ComplianceStatus
+    from ibn.deploy import DeviceCredentials
+
+    try:
+        loader = TopologyLoader()
+        topo, _ = loader.load(topology)
+
+        parser = IntentParser()
+        intent = parser.parse(intent_file)
+
+        credentials = DeviceCredentials(username=username, password=password)
+        checker = ComplianceChecker(topo, credentials)
+
+        def run_check() -> bool:
+            """Run a single compliance check and display results."""
+            console.print(f"\n[bold]Checking compliance for: {intent.name}[/bold]")
+            console.print(f"[dim]Checking {topo.node_count} devices...[/dim]\n")
+
+            report = checker.check_compliance(intent)
+
+            # Display status
+            if report.is_compliant:
+                console.print(
+                    Panel(
+                        f"[bold green]COMPLIANT[/bold green]\n\n"
+                        f"All {len(report.devices_checked)} devices are operating as intended.\n"
+                        f"Check duration: {report.check_duration_ms}ms",
+                        title="Compliance Status",
+                        border_style="green",
+                    )
+                )
+            else:
+                # Build violations table
+                table = Table(title="Compliance Violations", show_header=True, header_style="bold red")
+                table.add_column("Device")
+                table.add_column("Type")
+                table.add_column("Severity")
+                table.add_column("Message")
+
+                for violation in report.violations:
+                    severity_style = "red" if violation.severity == "critical" else "yellow"
+                    table.add_row(
+                        violation.device,
+                        violation.violation_type.value,
+                        f"[{severity_style}]{violation.severity}[/{severity_style}]",
+                        violation.message[:50],
+                    )
+
+                console.print(
+                    Panel(
+                        f"[bold red]NON-COMPLIANT[/bold red]\n\n"
+                        f"Found {report.total_violations} violation(s):\n"
+                        f"  - Critical: {report.critical_count}\n"
+                        f"  - Warning: {report.warning_count}\n\n"
+                        f"Check duration: {report.check_duration_ms}ms",
+                        title="Compliance Status",
+                        border_style="red",
+                    )
+                )
+                console.print()
+                console.print(table)
+
+            return report.is_compliant
+
+        if continuous:
+            console.print(f"[bold]Starting continuous compliance monitoring (every {interval}s)[/bold]")
+            console.print("[dim]Press Ctrl+C to stop[/dim]")
+
+            try:
+                while True:
+                    run_check()
+                    console.print(f"\n[dim]Next check in {interval} seconds...[/dim]")
+                    time.sleep(interval)
+            except KeyboardInterrupt:
+                console.print("\n[yellow]Compliance monitoring stopped[/yellow]")
+        else:
+            is_compliant = run_check()
+            if not is_compliant:
+                raise SystemExit(1)
+
+    except IBNError as e:
+        console.print(f"[bold red]Error:[/bold red] {e.message}")
+        raise SystemExit(1)
+
+
 @main.command("history")
 @click.option("--limit", "-n", type=int, default=10, help="Number of deployments to show")
 def history(limit: int) -> None:

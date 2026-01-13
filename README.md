@@ -61,6 +61,7 @@ Solution found in 8ms:
 | **Verification** | Confirm BGP neighbors and BFD sessions are up |
 | **Deployment History** | Track all deployments with timestamps and config snapshots |
 | **Rollback** | Restore previous configurations with one command |
+| **Compliance Monitoring** | Continuous verification that network matches intent |
 
 ## Quick Start
 
@@ -116,6 +117,12 @@ ibn history
 
 # Rollback to previous configuration
 ibn rollback -u admin -p <password>
+
+# Check compliance (one-time)
+ibn compliance examples/intents/nyc-branch.yaml -u admin -p <password>
+
+# Continuous compliance monitoring
+ibn compliance examples/intents/nyc-branch.yaml -c -i 30 -u admin -p <password>
 ```
 
 ## Architecture
@@ -184,7 +191,7 @@ The platform was developed and tested on an EVE-NG lab with Cisco C8000V routers
 ```
 ibn-platform/
 ├── src/ibn/
-│   ├── cli.py              # Click CLI commands (15 commands)
+│   ├── cli.py              # Click CLI commands (16 commands)
 │   ├── errors.py           # Exception hierarchy
 │   ├── model/
 │   │   ├── topology.py     # Pydantic topology models
@@ -206,13 +213,16 @@ ibn-platform/
 │   │   └── topology.py     # ASCII topology diagrams
 │   ├── monitor/
 │   │   └── watcher.py      # Real-time network monitoring
-│   └── state/
-│       └── history.py      # Deployment history & rollback
+│   ├── state/
+│   │   └── history.py      # Deployment history & rollback
+│   └── compliance/
+│       └── checker.py      # Compliance monitoring & verification
 ├── tests/
-│   └── unit/               # Unit tests (40 tests)
-│       ├── test_history.py # Deployment history tests
-│       ├── test_intent.py  # Intent parser tests
-│       └── test_solver.py  # Z3 solver tests
+│   └── unit/               # Unit tests (57 tests)
+│       ├── test_compliance.py # Compliance checker tests
+│       ├── test_history.py    # Deployment history tests
+│       ├── test_intent.py     # Intent parser tests
+│       └── test_solver.py     # Z3 solver tests
 ├── templates/
 │   ├── ios-xe/
 │   │   └── bgp.j2          # BGP config template
@@ -249,11 +259,11 @@ ibn-platform/
 - [x] Real-time network monitoring
 - [x] Deployment history tracking
 - [x] Rollback capability
-- [x] Unit test suite (40 tests)
+- [x] Unit test suite (57 tests)
+- [x] Continuous compliance monitoring
 - [ ] NETCONF/RESTCONF support
 - [ ] Web dashboard
 - [ ] Multi-vendor templates
-- [ ] Continuous compliance monitoring
 
 ## License
 
