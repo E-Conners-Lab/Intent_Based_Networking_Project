@@ -62,6 +62,7 @@ Solution found in 8ms:
 | **Deployment History** | Track all deployments with timestamps and config snapshots |
 | **Rollback** | Restore previous configurations with one command |
 | **Compliance Monitoring** | Continuous verification that network matches intent |
+| **NETCONF/RESTCONF** | Modern API-based device connectivity (YANG models) |
 
 ## Quick Start
 
@@ -123,6 +124,12 @@ ibn compliance examples/intents/nyc-branch.yaml -u admin -p <password>
 
 # Continuous compliance monitoring
 ibn compliance examples/intents/nyc-branch.yaml -c -i 30 -u admin -p <password>
+
+# Verify via NETCONF (port 830)
+ibn verify --protocol netconf -u admin -p <password> --bgp
+
+# Verify via RESTCONF (port 443)
+ibn verify --protocol restconf -u admin -p <password> --bgp
 ```
 
 ## Architecture
@@ -191,7 +198,7 @@ The platform was developed and tested on an EVE-NG lab with Cisco C8000V routers
 ```
 ibn-platform/
 ├── src/ibn/
-│   ├── cli.py              # Click CLI commands (16 commands)
+│   ├── cli.py              # Click CLI commands (16 commands, multi-protocol)
 │   ├── errors.py           # Exception hierarchy
 │   ├── model/
 │   │   ├── topology.py     # Pydantic topology models
@@ -208,6 +215,7 @@ ibn-platform/
 │   ├── deploy/
 │   │   ├── generator.py    # Config generation
 │   │   ├── connector.py    # SSH device connector
+│   │   ├── netconf.py      # NETCONF/RESTCONF connectors
 │   │   └── diff.py         # Config diff engine
 │   ├── viz/
 │   │   └── topology.py     # ASCII topology diagrams
@@ -218,10 +226,11 @@ ibn-platform/
 │   └── compliance/
 │       └── checker.py      # Compliance monitoring & verification
 ├── tests/
-│   └── unit/               # Unit tests (57 tests)
+│   └── unit/               # Unit tests (80 tests)
 │       ├── test_compliance.py # Compliance checker tests
 │       ├── test_history.py    # Deployment history tests
 │       ├── test_intent.py     # Intent parser tests
+│       ├── test_netconf.py    # NETCONF/RESTCONF tests
 │       └── test_solver.py     # Z3 solver tests
 ├── templates/
 │   ├── ios-xe/
@@ -245,6 +254,8 @@ ibn-platform/
 - **Rich** - Terminal formatting
 - **Jinja2** - Config templating
 - **Netmiko** - SSH device connections
+- **ncclient** - NETCONF client for YANG-based config
+- **requests** - RESTCONF REST API client
 
 ## Roadmap
 
@@ -259,9 +270,9 @@ ibn-platform/
 - [x] Real-time network monitoring
 - [x] Deployment history tracking
 - [x] Rollback capability
-- [x] Unit test suite (57 tests)
+- [x] Unit test suite (80 tests)
 - [x] Continuous compliance monitoring
-- [ ] NETCONF/RESTCONF support
+- [x] NETCONF/RESTCONF support
 - [ ] Web dashboard
 - [ ] Multi-vendor templates
 

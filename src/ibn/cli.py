@@ -1253,14 +1253,16 @@ def what_if(
 )
 @click.option("--username", "-u", default=lambda: os.environ.get("IBN_USERNAME"), prompt=True, help="SSH username (or set IBN_USERNAME)")
 @click.option("--password", "-p", default=lambda: os.environ.get("IBN_PASSWORD"), prompt=True, hide_input=True, help="SSH password (or set IBN_PASSWORD)")
+@click.option("--protocol", type=click.Choice(["ssh", "netconf", "restconf"]), default="ssh", help="Connection protocol", show_default=True)
 @click.option("--bgp", is_flag=True, help="Show BGP neighbor status")
 @click.option("--bfd", is_flag=True, help="Show BFD session status")
-@click.option("--routes", is_flag=True, help="Show BGP routes")
+@click.option("--routes", is_flag=True, help="Show BGP routes (SSH only)")
 @click.option("--all", "show_all", is_flag=True, help="Show all verifications")
 def verify(
     topology: Path,
     username: str,
     password: str,
+    protocol: str,
     bgp: bool,
     bfd: bool,
     routes: bool,
@@ -1270,8 +1272,13 @@ def verify(
 
     Connects to devices and shows BGP/BFD status to confirm
     the intent was applied correctly.
+
+    Supports multiple protocols:
+      --protocol ssh       (default) SSH/CLI via Netmiko
+      --protocol netconf   NETCONF via ncclient (port 830)
+      --protocol restconf  RESTCONF via REST API (port 443)
     """
-    from ibn.deploy import DeviceConnector, DeviceCredentials
+    from ibn.deploy import DeviceConnector, DeviceCredentials, Protocol, create_connector
 
     # Default to BGP if nothing specified
     if not any([bgp, bfd, routes, show_all]):
@@ -1280,21 +1287,30 @@ def verify(
     if show_all:
         bgp = bfd = routes = True
 
+    # Map string to Protocol enum
+    protocol_map = {
+        "ssh": Protocol.SSH,
+        "netconf": Protocol.NETCONF,
+        "restconf": Protocol.RESTCONF,
+    }
+    proto = protocol_map[protocol]
+
     try:
         loader = TopologyLoader()
         topo, _ = loader.load(topology)
 
         credentials = DeviceCredentials(username=username, password=password)
-        connector = DeviceConnector(credentials)
+        connector = create_connector(credentials, proto)
 
-        console.print(f"\n[bold]Verifying {topo.node_count} devices...[/bold]\n")
+        protocol_label = protocol.upper()
+        console.print(f"\n[bold]Verifying {topo.node_count} devices via {protocol_label}...[/bold]\n")
 
         for name, node in topo.nodes.items():
             if not node.mgmt_ip:
                 continue
 
             console.print(f"[bold cyan]{'='*60}[/bold cyan]")
-            console.print(f"[bold cyan]{name}[/bold cyan] ({node.mgmt_ip})")
+            console.print(f"[bold cyan]{name}[/bold cyan] ({node.mgmt_ip}) [{protocol_label}]")
             console.print(f"[bold cyan]{'='*60}[/bold cyan]")
 
             if bgp:
@@ -1307,10 +1323,13 @@ def verify(
                 console.print("\n[bold]BFD Sessions:[/bold]")
                 console.print(result.output if result.success else f"[red]{result.output}[/red]")
 
-            if routes:
+            if routes and protocol == "ssh":
+                # Routes only available via SSH/CLI
                 result = connector.verify_routes(str(node.mgmt_ip), name)
                 console.print("\n[bold]BGP Routes:[/bold]")
                 console.print(result.output if result.success else f"[red]{result.output}[/red]")
+            elif routes and protocol != "ssh":
+                console.print("\n[dim]BGP Routes: (not available via NETCONF/RESTCONF)[/dim]")
 
             console.print()
 
