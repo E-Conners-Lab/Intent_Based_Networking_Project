@@ -114,19 +114,17 @@ class NetconfConnector:
         Returns:
             ConnectionResult with BGP config XML
         """
-        # Filter for BGP config only
+        # Filter for BGP config only - use subtree tuple format
         bgp_filter = f"""
-        <filter>
             <native xmlns="{self.NS_NATIVE}">
                 <router>
                     <bgp xmlns="{self.NS_BGP}"/>
                 </router>
             </native>
-        </filter>
         """
         try:
             with self._connect(host) as conn:
-                config = conn.get_config(source="running", filter=bgp_filter)
+                config = conn.get_config(source="running", filter=("subtree", bgp_filter))
                 return ConnectionResult(
                     success=True,
                     output=config.data_xml,
@@ -177,20 +175,20 @@ class NetconfConnector:
         Returns:
             ConnectionResult with BGP neighbor state
         """
-        # Filter for BGP operational state
+        # Filter for BGP operational state - ncclient needs tuple format
         bgp_oper_filter = f"""
-        <filter>
             <bgp-state-data xmlns="{self.NS_BGP_OPER}">
                 <neighbors/>
             </bgp-state-data>
-        </filter>
         """
         try:
             with self._connect(host) as conn:
-                state = conn.get(filter=bgp_oper_filter)
+                # Use subtree filter format for ncclient
+                state = conn.get(filter=("subtree", bgp_oper_filter))
+                output = self._format_bgp_state(state.data_xml)
                 return ConnectionResult(
                     success=True,
-                    output=state.data_xml,
+                    output=output,
                     protocol=Protocol.NETCONF,
                 )
         except Exception as e:
@@ -212,18 +210,17 @@ class NetconfConnector:
             ConnectionResult with BFD session state
         """
         bfd_oper_filter = f"""
-        <filter>
             <bfd-state xmlns="{self.NS_BFD_OPER}">
                 <sessions/>
             </bfd-state>
-        </filter>
         """
         try:
             with self._connect(host) as conn:
-                state = conn.get(filter=bfd_oper_filter)
+                state = conn.get(filter=("subtree", bfd_oper_filter))
+                output = self._format_bfd_state(state.data_xml)
                 return ConnectionResult(
                     success=True,
-                    output=state.data_xml,
+                    output=output,
                     protocol=Protocol.NETCONF,
                 )
         except Exception as e:
@@ -233,6 +230,55 @@ class NetconfConnector:
                 protocol=Protocol.NETCONF,
                 error=str(e),
             )
+
+    def _format_bgp_state(self, xml_data: str) -> str:
+        """Format BGP state XML for display."""
+        lines = ["BGP Neighbor Status (via NETCONF):", "=" * 50]
+        try:
+            # Parse XML and extract neighbor info
+            root = ET.fromstring(xml_data)
+            # Handle namespaces
+            ns = {"bgp": self.NS_BGP_OPER}
+            neighbors = root.findall(".//bgp:neighbor", ns)
+            if not neighbors:
+                # Try without namespace prefix
+                neighbors = root.iter()
+                for elem in root.iter():
+                    if "neighbor" in elem.tag and "neighbor-id" not in elem.tag:
+                        neighbor_id = elem.find(".//{*}neighbor-id")
+                        state = elem.find(".//{*}session-state")
+                        if neighbor_id is not None:
+                            nid = neighbor_id.text or "unknown"
+                            st = state.text if state is not None else "unknown"
+                            lines.append(f"  {nid}: {st}")
+            else:
+                for neighbor in neighbors:
+                    neighbor_id = neighbor.find("bgp:neighbor-id", ns)
+                    state = neighbor.find("bgp:session-state", ns)
+                    nid = neighbor_id.text if neighbor_id is not None else "unknown"
+                    st = state.text if state is not None else "unknown"
+                    lines.append(f"  {nid}: {st}")
+        except ET.ParseError:
+            lines.append("  Unable to parse XML response")
+            lines.append(f"  Raw: {xml_data[:200]}...")
+        return "\n".join(lines)
+
+    def _format_bfd_state(self, xml_data: str) -> str:
+        """Format BFD state XML for display."""
+        lines = ["BFD Session Status (via NETCONF):", "=" * 50]
+        try:
+            root = ET.fromstring(xml_data)
+            for elem in root.iter():
+                if "session" in elem.tag.lower() and "sessions" not in elem.tag.lower():
+                    remote = elem.find(".//{*}remote-addr")
+                    state = elem.find(".//{*}local-state")
+                    if remote is not None:
+                        r = remote.text or "unknown"
+                        s = state.text if state is not None else "unknown"
+                        lines.append(f"  {r}: {s}")
+        except ET.ParseError:
+            lines.append("  Unable to parse XML response")
+        return "\n".join(lines)
 
 
 class RestconfConnector:
